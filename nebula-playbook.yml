@@ -1,0 +1,145 @@
+---
+- name: F
+  hosts: linux 
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+  
+  vars_files:
+    - nebula-devices.yml # TODO move this to the host file, and make the host file a yml
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on 
+ 
+  tasks:
+
+    # - name: Print all available facts
+    #   ansible.builtin.debug:
+    #     var: ansible_facts
+
+    # - name: write facts
+    #   local_action:
+    #     module: shell
+    #   # shell:
+    #   # sed -i s/4.20/4.x/ package.json
+    #     # vars_files: 
+    #     #   - vars/{{ansible_local.system}}/{{ansible_local.machine}}.yml
+    #     cmd: | 
+    #       echo "{{hostvars}}"  > /tmp/ansible_local.json ; 
+    
+    # - meta: end_play
+
+    # install download binaries 
+    - name: download binaries to orchestrator machine 
+      local_action:
+        module: shell
+        cmd: |
+          version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
+          
+          mkdir -p {{work_dir}}
+          rm -rf {{work_dir}}/*
+          cd {{work_dir}}
+          
+          curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{orchestrator_os_file_name}}"
+
+          extract {{orchestrator_os_file_name}}
+        #creates: "/dev/nulll"
+      run_once: true
+      register: binaries_log
+
+    # download binaries to client machines 
+    - name: download binaries to client machines
+      shell:
+        executable: /bin/bash
+        cmd: |
+
+          version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
+          
+          mkdir -p {{work_dir}}
+          rm -rf {{work_dir}}/*
+          cd {{work_dir}}
+          
+          curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{os_file_name}}"
+
+          ~/playin/custom_bashrc/bin/extract {{os_file_name}} # TODO need to be more dynamic
+
+    - name: move binaries to bin dir (as root)
+      shell:
+        cmd : |
+          cd {{work_dir}}
+          mv nebula {{executable_dir}}/
+          mv nebula-cert {{executable_dir}}/
+          cd .. && rm -rf {{work_dir}}
+      become: true
+
+    # TODO maybe dont if it exists, or download from bitwarden  
+    - name: create nebula ca 
+      local_action:
+        module: shell
+        cmd: |
+          cd {{work_dir}}
+          ./nebula-cert ca -name "{{nebula_ca_name:}}"
+        creates: "{{work_dir}}/ca.crt"
+      run_once: true
+
+    - name: create nebula certs
+      local_action:
+        module: shell
+        cmd: |
+          cd {{work_dir}}
+          mkdir -p "{{item.name}}"
+
+          ./nebula-cert sign \
+          -out-crt {{item.name}}/host.crt -out-key {{item.name}}/host.key \
+          -name "{{item.name}}" \
+          -ip "{{item.nebula_ip}}" \
+          -groups "{item.signed_groups}" 
+      loop: "{{ nebula_devices }}"
+      run_once: true
+
+    # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
+
+    - name: create config for hosts
+      local_action: 
+        module: template
+        src: ./template/config.yml.j2
+        dest: "{{work_dir}}/{{ liiiiit.name }}/config.yml" # 
+      vars:
+        lighthouse: 
+          am_lighthouse: "{{ liiiiit.am_lighthouse }}"
+      loop: "{{ nebula_devices }}"
+      loop_control:
+        loop_var: liiiiit
+      run_once: true
+
+    - name: make sure nebula directory exists
+      file: 
+        path: /etc/nebula
+        state: directory
+      become: true
+
+    # copy to the ca file to the 'clients'
+    - name: copy ca file to clients
+      copy: 
+        backup: true
+        dest: "/etc/nebula/{{ item }}"
+        src: "{{work_dir}}/{{ item }}"
+      become: true
+      with_items: 
+        - ca.crt
+
+    # copy to /etc/nebula/config.yml, /etc/nebula/host.crt, /etc/nebula/host.key
+    - name: copy client config file to clients
+      copy: 
+        backup: false
+        dest: "/etc/nebula/{{ item }}"
+        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
+        src: "{{work_dir}}/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
+      become: true
+      with_items: 
+        - host.crt
+        - host.key
+        - config.yml
+      

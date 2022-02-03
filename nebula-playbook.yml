@@ -1,6 +1,6 @@
 ---
 - name: F
-  hosts: linux 
+  hosts: nebula_nodes 
 
   vars: 
     work_dir: /tmp/yeltnar-ansible
@@ -8,7 +8,7 @@
     # executable_dir # is found in vars/{os_type}/{processor_arch}
   
   vars_files:
-    - nebula-devices.yml # TODO move this to the host file, and make the host file a yml
+    - nebula-devices.yml
     - nebula-config.yml
     - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
     - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on 
@@ -80,7 +80,7 @@
         module: shell
         cmd: |
           cd {{work_dir}}
-          ./nebula-cert ca -name "{{nebula_ca_name:}}"
+          ./nebula-cert ca -name "{{nebula_ca_name}}"
         creates: "{{work_dir}}/ca.crt"
       run_once: true
 
@@ -89,27 +89,26 @@
         module: shell
         cmd: |
           cd {{work_dir}}
-          mkdir -p "{{item.name}}"
+          mkdir -p "{{item.value.name}}"
 
           ./nebula-cert sign \
-          -out-crt {{item.name}}/host.crt -out-key {{item.name}}/host.key \
-          -name "{{item.name}}" \
-          -ip "{{item.nebula_ip}}" \
-          -groups "{item.signed_groups}" 
-      loop: "{{ nebula_devices }}"
+          -out-crt {{item.value.name}}/host.crt -out-key {{item.value.name}}/host.key \
+          -name "{{item.value.name}}" \
+          -ip "{{item.value.nebula_ip}}" \
+          -groups "{item.value.signed_groups}" 
+      loop: "{{hostvars | dict2items}}"
       run_once: true
 
     # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
-
     - name: create config for hosts
       local_action: 
         module: template
         src: ./template/config.yml.j2
-        dest: "{{work_dir}}/{{ liiiiit.name }}/config.yml" # 
+        dest: "{{work_dir}}/{{ liiiiit.value.name }}/config.yml"
       vars:
         lighthouse: 
-          am_lighthouse: "{{ liiiiit.am_lighthouse }}"
-      loop: "{{ nebula_devices }}"
+          am_lighthouse: "{{ liiiiit.value.am_lighthouse }}"
+      loop: "{{hostvars | dict2items}}"
       loop_control:
         loop_var: liiiiit
       run_once: true
@@ -119,6 +118,8 @@
         path: /etc/nebula
         state: directory
       become: true
+
+    # TODO make some logic to allow for multiple certs, therefore allowing for multiple iterations of the network
 
     # copy to the ca file to the 'clients'
     - name: copy ca file to clients

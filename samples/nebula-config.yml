@@ -1,0 +1,38 @@
+---
+pki: 
+  ca: /etc/nebula/ca.crt
+  cert: /etc/nebula/host.crt
+  key: /etc/nebula/host.key
+
+listen: 
+  host: 0.0.0.0
+  port: 0
+
+punchy: "true"
+stats: # logging status 
+  enabled: false
+
+outbound: # outbound networking rules
+  - port: any
+    proto: any
+    host: any
+
+inbound: # outbound networking rules
+  - port: any
+    proto: any
+    host: any
+
+# lists nebula lighthouses
+lighthouses: 
+  - nebula_ip: 10.0.0.1
+    external_addr: "123.123.123.123"
+
+# configures node to be a lighthouse
+# lighthouse: 
+#   am_lighthouse: false
+#   serve_dns: false
+
+# blocklist: 
+#   - a
+#   - b 
+#   - c

@@ -1,3 +1,4 @@
-inventory.yml
-nebula-config.yml
-nebula-devices.yml
+/inventory.yml
+/nebula-config.yml
+/rm
+!samples/

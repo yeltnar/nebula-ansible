@@ -1,0 +1,10 @@
+nebula_nodes:
+  hosts: 
+    digitalocean:
+      ansible_user: me
+      name: name
+      nebula_name: name
+      am_lighthouse: true
+      device_type: standard # ie not a phone
+      nebula_ip: "10.0.0.1/24"
+      signed_groups: "linux,cloud,lighthouse"

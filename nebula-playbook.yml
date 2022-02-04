@@ -5,6 +5,7 @@
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula/"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
   
   vars_files:
@@ -99,6 +100,8 @@
       run_once: true
 
     # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
+    
+    # create the config.yml for each host 
     - name: create config for hosts
       local_action: 
         module: template
@@ -114,24 +117,28 @@
 
     - name: make sure nebula directory exists
       file: 
-        path: /etc/nebula
+        path: /etc/nebula/inputfiles
         state: directory
       become: true
 
     # TODO make some logic to allow for multiple certs, therefore allowing for multiple iterations of the network
 
-    # copy to the ca file to the 'clients'
-    - name: copy ca file to clients
+    # TODO backup current cert and keys (the config may not change?)
+
+    # backup last added /etc/nebula/ca.crt
+    - name: move files so network has some time to come up with new files
       copy: 
-        backup: true
-        dest: "/etc/nebula/{{ item }}"
-        src: "{{work_dir}}/{{ item }}"
+        backup: false
+        dest: "/etc/nebula/inputfiles/ansible.{{ item }}.old"
+        src: "/etc/nebula/inputfiles/ansible.{{ item }}.new"
+        remote_src: true
       become: true
+      ignore_errors: yes
       with_items: 
         - ca.crt
 
-    # copy to /etc/nebula/config.yml, /etc/nebula/host.crt, /etc/nebula/host.key
-    - name: copy client config file to clients
+    # copy newly created crt and key to /etc/nebula/host.crt, /etc/nebula/host.key
+    - name: copy client crt, key to clients
       copy: 
         backup: false
         dest: "/etc/nebula/{{ item }}"
@@ -141,5 +148,58 @@
       with_items: 
         - host.crt
         - host.key
+
+    # copy newly created ca.crt to /etc/nebula/host.crt, /etc/nebula/host.key
+    - name: copy ca.crt file to clients
+      copy: 
+        backup: false
+        dest: "/etc/nebula/inputfiles/ansible.{{ item }}.new"
+        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
+        src: "{{work_dir}}/{{ item }}"
+      become: true
+      with_items: 
+        - ca.crt
+
+    # TODO join the ca.cert into one file to be used by the config
+    - name: join the ca.crt files to be used by the config
+      shell:
+        cmd: | 
+          cd "{{nebula_config_client_folder}}"
+
+          out_file="{{nebula_config_client_folder}}/{{item}}"
+
+          printf "" > "$out_file" # clear the current file
+
+          ls inputfiles | awk '/{{item}}/{print "cat inputfiles/" $1 " >> {{item}}"}' | bash
+
+        executable: /bin/bash
+      become: true 
+      with_items:
+        - ca.crt
+
+    # copy to /etc/nebula/config.yml
+    - name: copy client config file to clients
+      copy: 
+        backup: false
+        dest: "/etc/nebula/{{ item }}"
+        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
+        src: "{{work_dir}}/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
+      become: true
+      with_items: 
         - config.yml
+
+    # create the systemd service 
+    - name: create systemd service
+      copy: 
+        backup: false
+        dest: "/etc/systemd/system/nebula.service"
+        src: "nebula.service"
+      become: true
+
+    - name: restart the nebula service
+      systemd: 
+        name: nebula 
+        state: restarted
+        enabled: true
+      become: true
       

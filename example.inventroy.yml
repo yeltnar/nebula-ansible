@@ -1,0 +1,18 @@
+nebula_nodes:
+  hosts: 
+    # 10.10.10.1: 
+    website.com:
+      ansible_user: root
+      name: vpc_provider
+      nebula_name: vpc_provider
+      am_lighthouse: true # make false to mark as false in config 
+      device_type: standard # maybe use one day... not yet
+      nebula_ip: "10.10.10.1/24" # VPN-type-of address to be assigned
+      signed_groups: "linux,cloud,lighthouse,vpc" # maybe add pi,phone,primary,home
+
+#localhost ansible_connection=local
+
+nebula_phones: 
+  hosts: 
+    # not used, but would be cool... maybe usful if can't use device_type
+

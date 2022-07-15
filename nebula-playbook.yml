@@ -8,6 +8,9 @@
     nebula_config_client_folder: "/etc/nebula/"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
   
+  # TODO make sure jq is installed
+  # TODO make sure BECOME password is used 
+
   vars_files:
     - nebula-config.yml
     - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
@@ -38,11 +41,13 @@
         cmd: |
           version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
           
-          mkdir -p {{work_dir}}
-          rm -rf {{work_dir}}/*
-          cd {{work_dir}}
+          mkdir -p "{{work_dir}}_orch"
+          rm -rf {{work_dir}}_orch/*
+          cd "{{work_dir}}_orch"
           
           curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{orchestrator_os_file_name}}"
+
+          echo "$version\n{{orchestrator_os_file_name}}\n{{work_dir}}\n$PWD" > /tmp/drew_ansible.log
 
           extract {{orchestrator_os_file_name}}
         #creates: "/dev/nulll"
@@ -79,7 +84,7 @@
       local_action:
         module: shell
         cmd: |
-          cd {{work_dir}}
+          cd "{{work_dir}}_orch"
           ./nebula-cert ca -name "{{nebula_ca_name}}"
         creates: "{{work_dir}}/ca.crt"
       run_once: true
@@ -88,7 +93,7 @@
       local_action:
         module: shell
         cmd: |
-          cd {{work_dir}}
+          cd "{{work_dir}}_orch"
           mkdir -p "{{item.value.name}}"
 
           ./nebula-cert sign \
@@ -106,7 +111,7 @@
       local_action: 
         module: template
         src: ./template/config.yml.j2
-        dest: "{{work_dir}}/{{ liiiiit.value.name }}/config.yml"
+        dest: "{{work_dir}}_orch/{{ liiiiit.value.name }}/config.yml"
       vars:
         lighthouse: 
           am_lighthouse: "{{ liiiiit.value.am_lighthouse }}"
@@ -143,7 +148,7 @@
         backup: false
         dest: "/etc/nebula/{{ item }}"
         # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
+        src: "{{work_dir}}_orch/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
       become: true
       with_items: 
         - host.crt
@@ -155,7 +160,7 @@
         backup: false
         dest: "/etc/nebula/inputfiles/ansible.{{ item }}.new"
         # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}/{{ item }}"
+        src: "{{work_dir}}_orch/{{ item }}"
       become: true
       with_items: 
         - ca.crt
@@ -183,7 +188,7 @@
         backup: false
         dest: "/etc/nebula/{{ item }}"
         # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
+        src: "{{work_dir}}_orch/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
       become: true
       with_items: 
         - config.yml
@@ -214,6 +219,6 @@
       copy:  
         backup: false
         dest: "~/playin/caddy-cloud/hot/ca.crt"
-        src: "{{work_dir}}/ca.crt"
+        src: "{{work_dir}}_orch/ca.crt"
   
 

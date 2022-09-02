@@ -201,12 +201,19 @@
         src: "nebula.service"
       become: true
 
-    - name: restart the nebula service
-      systemd: 
-        name: nebula 
-        state: restarted
-        enabled: true
+    # - name: restart the nebula service
+    #   systemd: 
+    #     name: nebula 
+    #     state: restarted
+    #     enabled: true
+    #     no_block: true
+    #   become: true
+
+    # script to restart nebula daemon cuz it breaks the ssh connection 
+    - name: manually restart the nebula service
       become: true
+      shell: |
+        sleep 60 && systemctl restart nebula.service & echo 100
 
 - name: upload cert
   hosts: do.andbrant.com

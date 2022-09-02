@@ -1,7 +1,7 @@
 ---
 - name: F
   hosts: nebula_nodes
-  order: inventory
+  order: reverse_inventory
 
   vars: 
     work_dir: /tmp/yeltnar-ansible

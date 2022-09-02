@@ -1,3 +1,5 @@
+# NOTE: the order here matters, we will restart the nebula daemons in reverse order. THIS DOES NOT NECESSARILY MATCH THIS FILE... check the docs
+
 nebula_nodes:
   hosts: 
     # 10.10.10.1: 

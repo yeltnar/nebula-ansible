@@ -39,6 +39,7 @@
     - name: download binaries to orchestrator machine 
       local_action:
         module: shell
+        executable: /bin/bash
         cmd: |
           version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
           
@@ -49,6 +50,11 @@
           curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{orchestrator_os_file_name}}"
 
           echo "$version\n{{orchestrator_os_file_name}}\n{{work_dir}}\n$PWD" > /tmp/drew_ansible.log
+
+          PATH=$PATH:~/playin/custom_bashrc/bin
+
+          whoami;
+          pwd;
 
           extract {{orchestrator_os_file_name}}
         #creates: "/dev/nulll"
@@ -101,7 +107,7 @@
           -out-crt {{item.value.name}}/host.crt -out-key {{item.value.name}}/host.key \
           -name "{{item.value.name}}" \
           -ip "{{item.value.nebula_ip}}" \
-          -groups "{item.value.signed_groups}" 
+          -groups "{{item.value.signed_groups}}" 
       loop: "{{hostvars | dict2items}}"
       run_once: true
 

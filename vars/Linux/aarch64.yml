@@ -1,0 +1,3 @@
+---
+os_file_name: nebula-linux-arm64.tar.gz
+executable_dir: /usr/local/bin/

@@ -114,17 +114,23 @@
     # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
     
     # create the config.yml for each host 
+    # create the config.yml for each host
     - name: create config for hosts
-      local_action: 
-        module: template
-        src: ./template/config.yml.j2
-        dest: "{{work_dir}}_orch/{{ liiiiit.value.name }}/config.yml"
-      vars:
-        lighthouse: 
-          am_lighthouse: "{{ liiiiit.value.am_lighthouse }}"
+      local_action:
+        module: shell
+        cmd: |
+          mkdir -p "{{work_dir}}_orch"
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+          cd "{{item.value.name}}"
+
+          echo "{{item.value.config_changes}}" | yq -P '.' > changes.yml 
+
+          yq eval-all '. as $item ireduce ({}; . * $item)' {{playbook_dir}}/vars/nebula_default.reduced.yml changes.yml > config.yml
+
       loop: "{{hostvars | dict2items}}"
       loop_control:
-        loop_var: liiiiit
+        loop_var: item
       run_once: true
 
     - name: make sure nebula directory exists

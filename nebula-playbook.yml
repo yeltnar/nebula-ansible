@@ -15,10 +15,10 @@
   vars_files:
     - nebula-config.yml
     - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
-    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on 
- 
-  tasks:
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
 
+  tasks:
     # - name: Print all available facts
     #   ansible.builtin.debug:
     #     var: ansible_facts
@@ -30,9 +30,14 @@
     #   # sed -i s/4.20/4.x/ package.json
     #     # vars_files: 
     #     #   - vars/{{ansible_local.system}}/{{ansible_local.machine}}.yml
-    #     cmd: | 
-    #       echo "{{hostvars}}"  > /tmp/ansible_local.json ; 
     
+    # - name: Copy using inline content
+    #   local_action:
+    #     module: ansible.builtin.copy
+    #     content: "{{hostvars}}"
+    #     dest: /tmp/ansible.hosts.json
+    #   run_once: true
+
     # - meta: end_play
 
     # install download binaries 
@@ -96,6 +101,24 @@
         creates: "{{work_dir}}/ca.crt"
       run_once: true
 
+    - name: create nebula directories
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: create extra nebula devices directories 
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
     - name: create nebula certs
       local_action:
         module: shell
@@ -111,9 +134,24 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
+    - name: create nebula certs for extra devices
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+
+          ./nebula-cert sign \
+          -out-crt {{item.value.name}}/host.crt \
+          -out-key {{item.value.name}}/host.key \
+          -name "{{item.value.name}}" \
+          -ip "{{item.value.nebula_ip}}" \
+          -groups "{{item.value.signed_groups}}" 
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
     # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
     
-    # create the config.yml for each host 
     # create the config.yml for each host
     - name: create config for hosts
       local_action:
@@ -132,16 +170,125 @@
       loop_control:
         loop_var: item
       run_once: true
+    
+    # create the config.yml for each extra host
+    - name: create config for each extra host
+      local_action:
+        module: shell
+        cmd: |
+          mkdir -p "{{work_dir}}_orch"
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+          cd "{{item.value.name}}"
+
+          echo "{{item.value.config_changes}}" | yq -P '.' > changes.yml 
+
+          yq eval-all '. as $item ireduce ({}; . * $item)' {{playbook_dir}}/vars/nebula_default.reduced.yml changes.yml > config.yml
+
+      loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+    
+    # create tar for each host
+    - name: create tar for each host
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch/{{item.value.name}}"
+
+          tar zcvf out.tar --exclude "*.tar" *
+
+      loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+    
+    # create tar for each extra host
+    - name: create tar for each extra host
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch/{{item.value.name}}"
+
+          tar zcvf out.tar --exclude "*.tar" *
+
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
+    # create password file, if needed
+    - name: create password file, if needed
+      local_action:
+        module: shell
+        cmd: |
+          dd if=/dev/urandom of={{item.value.local_password_file}} count=4 bs=1024
+        creates: "{{item.value.local_password_file}}"
+      loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
+    # encrypt tar for each host
+    - name: encrypt tar for each host
+      local_action:
+        module: shell
+        cmd: |
+          export pass_file={{item.value.local_password_file}}; 
+          export in_file={{work_dir}}_orch/{{item.value.name}}/out.tar; 
+          export enc_file={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
+          ~/playin/custom_bashrc/bin/enc_openssl encrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
+      loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
+    # encrypt tar for each extra host
+    - name: encrypt tar for each extra host
+      local_action:
+        module: shell
+        cmd: |
+          export pass_file={{item.value.local_password_file}}; 
+          export in_file={{work_dir}}_orch/{{item.value.name}}/out.tar; 
+          export enc_file={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
+          ~/playin/custom_bashrc/bin/enc_openssl encrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+    
+    # copy password file to  hosts... prob want it to always mirror the one on the orch
+    - name: copy password file to hosts
+      copy: 
+        backup: true
+        dest: "/etc/nebula/password_file"
+        src: "{{ hostvars[inventory_hostname].local_password_file }}"
+        ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"
+      become: true
 
     - name: make sure nebula directory exists
       file: 
-        path: /etc/nebula/inputfiles
+        path: /etc/nebula/inputfiles # use inputfiles to allow for more certs
         state: directory
       become: true
 
-    # TODO make some logic to allow for multiple certs, therefore allowing for multiple iterations of the network
+    # copy newly created .enc file to hosts
+    - name: copy newly created .enc file to hosts
+      copy: 
+        backup: true
+        dest: "/etc/nebula/out.tar.enc"
+        src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
+      become: true
 
-    # TODO backup current cert and keys (the config may not change?)
+    # decrypt the .enc file on the hosts
+    - name: decrypt the .enc file on the hosts
+      shell:
+        cmd: |
+          export pass_file="/etc/nebula/password_file";
+          export enc_file=/etc/nebula/out.tar.enc; 
+          export out_file=/tmp/out.tar; 
+          ~/playin/custom_bashrc/bin/enc_openssl decrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
 
     # backup last added /etc/nebula/ca.crt
     - name: move files so network has some time to come up with new files
@@ -237,5 +384,3 @@
         backup: false
         dest: "~/playin/caddy-cloud/hot/ca.crt"
         src: "{{work_dir}}_orch/ca.crt"
-  
-

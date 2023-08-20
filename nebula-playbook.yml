@@ -6,7 +6,7 @@
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
-    nebula_config_client_folder: "/etc/nebula/"
+    nebula_config_client_folder: "/etc/nebula"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
   
   # TODO make sure jq is installed
@@ -91,7 +91,7 @@
           cd .. && rm -rf {{work_dir}}
       become: true
 
-    # TODO maybe dont if it exists, or download from bitwarden  
+    # TODO maybe dont if it exists
     - name: create nebula ca 
       local_action:
         module: shell
@@ -150,7 +150,21 @@
       loop: "{{other_hosts | dict2items}}"
       run_once: true
 
-    # TODO upload certs to bitwarden; this should allow for communication assuming the overlay network is down 
+    - name: copy ca.crt into device directory
+      local_action:
+        module: shell
+        cmd: |
+          cp "{{work_dir}}_orch/ca.crt" "{{work_dir}}_orch/{{item.value.name}}"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: copy ca.crt into extra devices' directory
+      local_action:
+        module: shell
+        cmd: |
+          cp "{{work_dir}}_orch/ca.crt" "{{work_dir}}_orch/{{item.value.name}}"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
     
     # create the config.yml for each host
     - name: create config for hosts
@@ -230,6 +244,18 @@
         loop_var: item
       run_once: true
 
+    # create password file, if needed for extra hosts 
+    - name: create password file, if needed, for extra hosts 
+      local_action:
+        module: shell
+        cmd: |
+          dd if=/dev/urandom of={{item.value.local_password_file}} count=4 bs=1024
+        creates: "{{item.value.local_password_file}}"
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
     # encrypt tar for each host
     - name: encrypt tar for each host
       local_action:
@@ -258,24 +284,24 @@
         loop_var: item
       run_once: true
     
+    - name: make sure nebula directory exists
+      file: 
+        path: "{{nebula_config_client_folder}}/inputfiles" # use inputfiles to allow for more certs
+        state: directory
+      become: true
+
     # copy password file to  hosts... prob want it to always mirror the one on the orch
     - name: copy password file to hosts
       copy: 
         backup: true
-        dest: "/etc/nebula/password_file"
+        dest: "{{nebula_config_client_folder}}/password_file"
         src: "{{ hostvars[inventory_hostname].local_password_file }}"
-        ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"
-      become: true
-
-    - name: make sure nebula directory exists
-      file: 
-        path: /etc/nebula/inputfiles # use inputfiles to allow for more certs
-        state: directory
+        # ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"        
       become: true
 
     - name: make sure tar_stuff directory exsists
       file: 
-        path: /etc/nebula/tar_stuff/
+        path: /tmp/nebula/tar_stuff/
         state: directory
       become: true
 
@@ -283,7 +309,7 @@
     - name: copy newly created .enc file to hosts
       copy: 
         backup: true
-        dest: "/etc/nebula/tar_stuff/out.tar.enc"
+        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
       become: true
 
@@ -291,9 +317,9 @@
     - name: decrypt the .enc file on the hosts
       shell:
         cmd: |
-          export pass_file="/etc/nebula/password_file";
-          export enc_file=/etc/nebula/tar_stuff/out.tar.enc; 
-          export out_file=/etc/nebula/tar_stuff/out.tar; 
+          export pass_file="{{nebula_config_client_folder}}/password_file";
+          export enc_file=/tmp/nebula/tar_stuff/out.tar.enc; 
+          export out_file=/tmp/nebula/tar_stuff/out.tar; 
           {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/enc_openssl decrypt # TODO make this not depend on the path like it is
       become: true
 
@@ -301,41 +327,40 @@
     - name: extract the tar
       shell:
         cmd: |
-          cd /etc/nebula/tar_stuff/
+          cd /tmp/nebula/tar_stuff/
           {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/extract out.tar
       become: true
-    
-    # backup last added /etc/nebula/ca.crt
+
+    # backup last added ca.crt
     - name: move files so network has some time to come up with new files
       copy: 
         backup: false
-        dest: "/etc/nebula/inputfiles/ansible.{{ item }}.old"
-        src: "/etc/nebula/inputfiles/ansible.{{ item }}.new"
+        dest: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.old"
+        src: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.new"
         remote_src: true
       become: true
       ignore_errors: yes
       with_items: 
         - ca.crt
 
-    # copy newly created crt and key to /etc/nebula/host.crt, /etc/nebula/host.key
-    - name: copy client crt, key to clients
+    - name: copy newly created crt, key, and config.yml to nebula directory 
       copy: 
         backup: false
-        dest: "/etc/nebula/{{ item }}"
-        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}_orch/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
+        dest: "{{nebula_config_client_folder}}/{{ item }}"
+        src: "/tmp/nebula/tar_stuff/{{ item }}"
+        remote_src: true
       become: true
       with_items: 
         - host.crt
         - host.key
+        - config.yml
 
-    # copy newly created ca.crt to /etc/nebula/host.crt, /etc/nebula/host.key
-    - name: copy ca.crt file to clients
+    - name: copy ca.crt file to nebula dir
       copy: 
         backup: false
-        dest: "/etc/nebula/inputfiles/ansible.{{ item }}.new"
-        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}_orch/{{ item }}"
+        dest: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.new"
+        src: "/tmp/nebula/tar_stuff/{{ item }}"
+        remote_src: true
       become: true
       with_items: 
         - ca.crt
@@ -357,18 +382,6 @@
       with_items:
         - ca.crt
 
-    # copy to /etc/nebula/config.yml
-    - name: copy client config file to clients
-      copy: 
-        backup: false
-        dest: "/etc/nebula/{{ item }}"
-        # src: "{{work_dir}}/{{hostvars[host].nebula_name}}/{{ item }}"
-        src: "{{work_dir}}_orch/{{ hostvars[inventory_hostname].nebula_name }}/{{ item }}"
-      become: true
-      with_items: 
-        - config.yml
-
-    # create the systemd service 
     - name: create systemd service
       copy: 
         backup: false
@@ -387,8 +400,8 @@
         no_block: yes
       become: true
 
-- name: upload cert
   hosts: do.andbrant.com
+- name: upload ca public cert to cloud
 
   vars: 
     work_dir: /tmp/yeltnar-ansible

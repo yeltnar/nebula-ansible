@@ -273,11 +273,17 @@
         state: directory
       become: true
 
+    - name: make sure tar_stuff directory exsists
+      file: 
+        path: /etc/nebula/tar_stuff/
+        state: directory
+      become: true
+
     # copy newly created .enc file to hosts
     - name: copy newly created .enc file to hosts
       copy: 
         backup: true
-        dest: "/etc/nebula/out.tar.enc"
+        dest: "/etc/nebula/tar_stuff/out.tar.enc"
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
       become: true
 
@@ -286,10 +292,19 @@
       shell:
         cmd: |
           export pass_file="/etc/nebula/password_file";
-          export enc_file=/etc/nebula/out.tar.enc; 
-          export out_file=/tmp/out.tar; 
-          ~/playin/custom_bashrc/bin/enc_openssl decrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
+          export enc_file=/etc/nebula/tar_stuff/out.tar.enc; 
+          export out_file=/etc/nebula/tar_stuff/out.tar; 
+          {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/enc_openssl decrypt # TODO make this not depend on the path like it is
+      become: true
 
+    # extract the tar
+    - name: extract the tar
+      shell:
+        cmd: |
+          cd /etc/nebula/tar_stuff/
+          {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/extract out.tar
+      become: true
+    
     # backup last added /etc/nebula/ca.crt
     - name: move files so network has some time to come up with new files
       copy: 

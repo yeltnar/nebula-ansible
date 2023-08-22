@@ -1,5 +1,8 @@
 ---
 - name: F
+  # TODO make sure jq is installed
+  # TODO make sure BECOME password is used 
+
   hosts: nebula_nodes
   order: reverse_inventory
 
@@ -8,9 +11,6 @@
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
-  
-  # TODO make sure jq is installed
-  # TODO make sure BECOME password is used 
 
   vars_files:
     - nebula-config.yml
@@ -65,31 +65,6 @@
         #creates: "/dev/nulll"
       run_once: true
       register: binaries_log
-
-    # download binaries to client machines 
-    - name: download binaries to client machines
-      shell:
-        executable: /bin/bash
-        cmd: |
-
-          version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
-          
-          mkdir -p {{work_dir}}
-          rm -rf {{work_dir}}/*
-          cd {{work_dir}}
-          
-          curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{os_file_name}}"
-
-          ~/playin/custom_bashrc/bin/extract {{os_file_name}} # TODO need to be more dynamic
-
-    - name: move binaries to bin dir (as root)
-      shell:
-        cmd : |
-          cd {{work_dir}}
-          mv nebula {{executable_dir}}/
-          mv nebula-cert {{executable_dir}}/
-          cd .. && rm -rf {{work_dir}}
-      become: true
 
     # TODO maybe dont if it exists
     - name: create nebula ca 
@@ -283,10 +258,56 @@
       loop_control:
         loop_var: item
       run_once: true
-    
+ 
+- name: setup hosts
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
+    # download binaries to client machines 
+    - name: download binaries to client machines
+      shell:
+        executable: /bin/bash
+        cmd: |
+
+          version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
+          
+          mkdir -p {{work_dir}}
+          rm -rf {{work_dir}}/*
+          cd {{work_dir}}
+          
+          curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{os_file_name}}"
+
+          ~/playin/custom_bashrc/bin/extract {{os_file_name}} # TODO need to be more dynamic
+
+    - name: move binaries to bin dir (as root)
+      shell:
+        cmd : |
+          cd {{work_dir}}
+          mv nebula {{executable_dir}}/
+          mv nebula-cert {{executable_dir}}/
+          cd .. && rm -rf {{work_dir}}
+      become: true
+   
     - name: make sure nebula directory exists
       file: 
         path: "{{nebula_config_client_folder}}/inputfiles" # use inputfiles to allow for more certs
+        state: directory
+      become: true
+
+    - name: make sure tar_stuff directory exists
+      file: 
+        path: /tmp/nebula/tar_stuff/
         state: directory
       become: true
 
@@ -299,12 +320,21 @@
         # ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"        
       become: true
 
-    - name: make sure tar_stuff directory exsists
-      file: 
-        path: /tmp/nebula/tar_stuff/
-        state: directory
-      become: true
+- name: setup hosts new config files
 
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
     # copy newly created .enc file to hosts
     - name: copy newly created .enc file to hosts
       copy: 

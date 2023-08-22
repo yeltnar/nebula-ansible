@@ -11,6 +11,15 @@ nebula_nodes:
       device_type: standard # maybe use one day... not yet
       nebula_ip: "10.10.10.1/24" # VPN-type-of address to be assigned
       signed_groups: "linux,cloud,lighthouse,vpc" # maybe add pi,phone,primary,home
+      config_changes: # changes to default config... merged at a depth of 1
+        firewall:
+          inbound:
+            - port: any
+              proto: icmp
+              host: any
+            - port: any
+              proto: any
+              groups: phone,primary
 
 #localhost ansible_connection=local
 

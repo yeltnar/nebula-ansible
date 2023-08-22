@@ -1,5 +1,5 @@
 ---
-- name: F
+- name: set up orchestrator
   # TODO make sure jq is installed
   # TODO make sure BECOME password is used 
 
@@ -304,13 +304,29 @@
         path: "{{nebula_config_client_folder}}/inputfiles" # use inputfiles to allow for more certs
         state: directory
       become: true
-
+    
     - name: make sure tar_stuff directory exists
       file: 
         path: /tmp/nebula/tar_stuff/
         state: directory
       become: true
 
+- name: copy password file to hosts
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks:
+    # TODO WARNING: this depends on communication between the two machines... we want to avoid this
     # copy password file to  hosts... prob want it to always mirror the one on the orch
     - name: copy password file to hosts
       copy: 
@@ -318,6 +334,30 @@
         dest: "{{nebula_config_client_folder}}/password_file"
         src: "{{ hostvars[inventory_hostname].local_password_file }}"
         # ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"        
+      become: true
+ 
+- name: setup hosts new config files
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
+    # TODO WARNING: this depends on communication between the two machines... we want to avoid this
+    # copy newly created .enc file to hosts
+    - name: copy newly created .enc file to hosts
+      copy: 
+        backup: true
+        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
+        src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
       become: true
 
 - name: setup hosts new config files
@@ -335,14 +375,6 @@
     - vars/other_hosts.yml
 
   tasks: 
-    # copy newly created .enc file to hosts
-    - name: copy newly created .enc file to hosts
-      copy: 
-        backup: true
-        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
-        src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
-      become: true
-
     # decrypt the .enc file on the hosts
     - name: decrypt the .enc file on the hosts
       shell:
@@ -395,7 +427,6 @@
       with_items: 
         - ca.crt
 
-    # TODO join the ca.cert into one file to be used by the config
     - name: join the ca.crt files to be used by the config
       shell:
         cmd: | 

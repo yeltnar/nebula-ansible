@@ -436,6 +436,25 @@
       with_items:
         - ca.crt
 
+- name: create the systemd service 
+
+  hosts: nebula_nodes
+  order: reverse_inventory
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
+    # TODO WARNING This is a copy command that depends on localhost having it
     - name: create systemd service
       copy: 
         backup: false

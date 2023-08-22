@@ -1,7 +1,9 @@
+# TODO make sure jq, curl, openssl, yeltnar/custom_bashrc (for extract, enc_openssl) are installed installed
+# TODO make sure Orch has yq, jq, curl, openssl, yeltnar/custom_bashrc (for extract, enc_openssl) are installed installed
+# TODO make sure BECOME password is used 
+
 ---
 - name: set up orchestrator
-  # TODO make sure jq is installed
-  # TODO make sure BECOME password is used 
 
   hosts: nebula_nodes
   order: reverse_inventory

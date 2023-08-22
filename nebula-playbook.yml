@@ -261,6 +261,8 @@
  
 - name: setup hosts
 
+  hosts: nebula_nodes
+
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
@@ -313,6 +315,8 @@
 
 - name: copy password file to hosts
 
+  hosts: nebula_nodes
+
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
@@ -338,6 +342,8 @@
  
 - name: setup hosts new config files
 
+  hosts: nebula_nodes
+
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
@@ -362,6 +368,8 @@
 
 - name: setup hosts new config files
 
+  hosts: nebula_nodes
+  
   vars: 
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"

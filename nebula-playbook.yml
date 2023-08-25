@@ -6,6 +6,7 @@
 - name: set up orchestrator
 
   hosts: nebula_nodes
+  any_errors_fatal: true
   order: reverse_inventory
 
   vars: 
@@ -264,6 +265,7 @@
 - name: setup hosts
 
   hosts: nebula_nodes
+  any_errors_fatal: true
 
   vars: 
     work_dir: /tmp/yeltnar-ansible
@@ -318,6 +320,7 @@
 - name: copy password and enc files to hosts
 
   hosts: nebula_nodes
+  any_errors_fatal: true
 
   vars: 
     work_dir: /tmp/yeltnar-ansible
@@ -353,6 +356,7 @@
 - name: setup hosts new config files
 
   hosts: nebula_nodes
+  any_errors_fatal: true
   order: reverse_inventory
 
   vars: 
@@ -439,6 +443,7 @@
 - name: create the systemd service 
 
   hosts: nebula_nodes
+  any_errors_fatal: true
   order: reverse_inventory
 
   vars: 

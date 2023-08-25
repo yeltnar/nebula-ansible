@@ -478,15 +478,60 @@
         no_block: yes
       become: true
 
-- name: upload ca public cert to cloud
-  hosts: do.andbrant.com
+- name: upload .enc to server (currently priate network)
+  
+  hosts: 10.10.10.8
+  # any_errors_fatal: true
 
   vars: 
     work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
 
   tasks: 
-    - name: "upload cert"
-      copy:  
+    - name: make sure hot nebula directory exists
+      file: 
+        path: "~/playin/caddy/hot/nebula"
+        state: directory
+      become: true   
+
+    - name: "upload hosts .enc files"
+      local_action:
+        module: copy
         backup: false
-        dest: "~/playin/caddy-cloud/hot/ca.crt"
-        src: "{{work_dir}}_orch/ca.crt"
+        dest: "~/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: "upload extra hosts .enc files"
+      local_action:
+        module: copy
+        backup: false
+        dest: "~/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+ 
+
+
+# - name: upload ca public cert to cloud
+  
+#   hosts: 10.10.10.1 
+
+#   vars: 
+#     work_dir: /tmp/yeltnar-ansible
+
+#   tasks: 
+#     - name: "upload cert"
+#       copy:  
+#         backup: false
+#         dest: "~/playin/caddy-cloud/hot/ca.crt"
+#         src: "{{work_dir}}_orch/ca.crt"

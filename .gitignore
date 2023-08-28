@@ -3,3 +3,5 @@
 /rm
 !samples/
 /tmp
+backup.sh
+borg_repos.json

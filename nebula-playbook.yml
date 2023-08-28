@@ -3,6 +3,70 @@
 # TODO make sure BECOME password is used 
 
 ---
+- name: set up encryption
+
+  hosts: nebula_nodes
+  any_errors_fatal: true
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
+    
+    - name: make sure var directory exists on orch
+      local_action:
+        module: file 
+        path: "{{var_dir_orch}}"
+        state: directory
+        owner: "1001" # these permissions are weird
+        group:  "1001" # these permissions are weird
+        # owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        # group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+      become: true
+      run_once: true
+    
+    - name: make sure var directory exists on hosts
+      file:
+        path: "{{var_dir}}"
+        state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+      become: true
+    
+    - name: generate ssh keys 
+      shell:
+        cmd : |
+          ssh-keygen -m PEM -N '' -q -f {{var_dir}}/id_rsa
+          chmod 600 {{var_dir}}/id_rsa
+          chmod 600 {{var_dir}}/id_rsa.pub
+        creates: "{{var_dir}}/id_rsa"
+   
+    - name: download public rsa key 
+      fetch: 
+        flat: true
+        # dest: "{{var_dir_orch}}/{{hostvars[inventory_hostname].name}}.pub"
+        dest: "{{var_dir_orch}}/{{hostvars[inventory_hostname].name}}/"
+        src: "{{var_dir}}/id_rsa.pub"
+        fail_on_missing: true
+    
+    - name: fix downloaded pub key file permissions 
+      local_action: 
+        module: shell
+        cmd: |
+          PUBSSHKEY={{var_dir_orch}}/{{hostvars[inventory_hostname].name}}/id_rsa.pub
+          chmod 600 $PUBSSHKEY
+   
 - name: set up orchestrator
 
   hosts: nebula_nodes
@@ -13,6 +77,7 @@
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -210,58 +275,62 @@
         loop_var: item
       run_once: true
 
-    # create password file, if needed
-    - name: create password file, if needed
-      local_action:
+    - name: encrypt with public rsa key for hosts
+      local_action: 
         module: shell
         cmd: |
-          dd if=/dev/urandom of={{item.value.local_password_file}} count=4 bs=1024
-        creates: "{{item.value.local_password_file}}"
+          set -x
+          cd {{work_dir}}_orch/{{item.value.name}}
+
+          PUBSSHKEY={{item.value.public_key_location}}
+          PUBKEY={{var_dir_orch}}/{{item.value.name}}.pkcs8
+          FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
+          ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
+          ENCRYPTED_FILE_PASSWORD={{work_dir}}_orch/{{item.value.name}}/out.pass.enc; 
+
+          openssl rand -out secret.key 32
+          openssl enc -aes-256-cbc -e -pbkdf2 -pass file:secret.key -a -iter 100000 -salt -in "${FILE_TO_ENCRYPT}" -out "${ENCRYPTED_FILE}" 
+          
+          ssh-keygen -e -f "${PUBSSHKEY}" -m PKCS8 > "${PUBKEY}"
+          openssl pkeyutl -encrypt -pubin -inkey "${PUBKEY}" -in "secret.key" -out "${ENCRYPTED_FILE_PASSWORD}" 2>&1 | tee /tmp/{{item.value.name}}.enc.log
+
+          rm secret.key # delete rsa secret
+
       loop: "{{hostvars | dict2items}}"
       loop_control:
         loop_var: item
       run_once: true
 
-    # create password file, if needed for extra hosts 
-    - name: create password file, if needed, for extra hosts 
-      local_action:
+    - name: encrypt with public rsa key for other hosts
+      local_action: 
         module: shell
         cmd: |
-          dd if=/dev/urandom of={{item.value.local_password_file}} count=4 bs=1024
-        creates: "{{item.value.local_password_file}}"
+          cd {{work_dir}}
+
+          PUBSSHKEY={{item.value.public_key_location}}
+          PUBKEY={{var_dir_orch}}/{{item.value.name}}.pkcs8
+          FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
+          ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
+          ENCRYPTED_FILE_PASSWORD={{work_dir}}_orch/{{item.value.name}}/out.pass.enc; 
+
+          if [ ! -e $PUBSSHKEY ]; then
+            exit -1
+          fi
+
+          echo {{item.value.name}} > $FILE_TO_ENCRYPT
+
+          openssl rand -out secret.key 32
+          openssl aes-256-cbc -in "${FILE_TO_ENCRYPT}" -out "${ENCRYPTED_FILE}" -pass file:secret.key
+          
+          ssh-keygen -e -f "${PUBSSHKEY}" -m PKCS8 > "${PUBKEY}"
+          openssl pkeyutl -encrypt -pubin -inkey "${PUBKEY}" -in "secret.key" -out "${ENCRYPTED_FILE_PASSWORD}"
+
+          rm secret.key
       loop: "{{other_hosts | dict2items}}"
       loop_control:
         loop_var: item
       run_once: true
-
-    # encrypt tar for each host
-    - name: encrypt tar for each host
-      local_action:
-        module: shell
-        cmd: |
-          export pass_file={{item.value.local_password_file}}; 
-          export in_file={{work_dir}}_orch/{{item.value.name}}/out.tar; 
-          export enc_file={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
-          ~/playin/custom_bashrc/bin/enc_openssl encrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
-      loop: "{{hostvars | dict2items}}"
-      loop_control:
-        loop_var: item
-      run_once: true
-
-    # encrypt tar for each extra host
-    - name: encrypt tar for each extra host
-      local_action:
-        module: shell
-        cmd: |
-          export pass_file={{item.value.local_password_file}}; 
-          export in_file={{work_dir}}_orch/{{item.value.name}}/out.tar; 
-          export enc_file={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
-          ~/playin/custom_bashrc/bin/enc_openssl encrypt | tee /tmp/enc.log # TODO make this not depend on the path like it is
-      loop: "{{other_hosts | dict2items}}"
-      loop_control:
-        loop_var: item
-      run_once: true
- 
+    
 - name: setup hosts
 
   hosts: nebula_nodes
@@ -309,12 +378,16 @@
       file: 
         path: "{{nebula_config_client_folder}}/inputfiles" # use inputfiles to allow for more certs
         state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
     
     - name: make sure tar_stuff directory exists
       file: 
         path: /tmp/nebula/tar_stuff/
         state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
 
 - name: copy password and enc files to hosts
@@ -335,23 +408,28 @@
     - vars/other_hosts.yml
 
   tasks:
-    # TODO WARNING: this depends on communication between the two machines... we want to avoid this
-    # copy password file to  hosts... prob want it to always mirror the one on the orch
-    - name: copy password file to hosts
-      copy: 
-        backup: true
-        dest: "{{nebula_config_client_folder}}/password_file"
-        src: "{{ hostvars[inventory_hostname].local_password_file }}"
-        # ansible_user: "{{hostvars[inventory_hostname].ansible_user}}"        
-      become: true
 
+    - name: make sure /tmp/nebula directory exists
+      file: 
+        path: "/tmp/nebula/tar_stuff/"
+        state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+      become: true   
+    
     # TODO WARNING: this depends on communication between the two machines... we want to avoid this
-    - name: copy newly created .enc file to hosts
+    - name: upload enc file 
       copy: 
-        backup: true
-        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
-      become: true
+        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
+        # backup: true
+    
+    # TODO WARNING: this depends on communication between the two machines... we want to avoid this
+    - name: upload password enc file 
+      copy: 
+        src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.pass.enc"
+        dest: "/tmp/nebula/tar_stuff/out.pass.enc"
+        # backup: true
 
 - name: setup hosts new config files
 
@@ -363,6 +441,7 @@
     work_dir: /tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
+    var_dir: "/var/yeltnar-nebula"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -372,24 +451,30 @@
     - vars/other_hosts.yml
 
   tasks: 
-    # decrypt the .enc file on the hosts
-    - name: decrypt the .enc file on the hosts
-      shell:
-        cmd: |
-          export pass_file="{{nebula_config_client_folder}}/password_file";
-          export enc_file=/tmp/nebula/tar_stuff/out.tar.enc; 
-          export out_file=/tmp/nebula/tar_stuff/out.tar; 
-          {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/enc_openssl decrypt # TODO make this not depend on the path like it is
-      become: true
 
-    # extract the tar
+    - name: decrypt with private rsa key
+      shell: 
+        cmd: |
+          cd /tmp/yeltnar-ansible_orch
+
+          PRIVKEY={{var_dir}}/id_rsa          
+          ENCRYPTED_FILE_PASSWORD=/tmp/nebula/tar_stuff/out.pass.enc;
+
+          ENCRYPTED_FILE=/tmp/nebula/tar_stuff/out.tar.enc;
+          DECRYPTED_FILE=/tmp/nebula/tar_stuff/out.tar; 
+
+          openssl pkeyutl -decrypt -inkey "${PRIVKEY}" -in "${ENCRYPTED_FILE_PASSWORD}" -out "secret.key"
+          
+          openssl enc -aes-256-cbc -d -pbkdf2 -pass file:secret.key -a -iter 100000 -salt -in "${ENCRYPTED_FILE}" -out "${DECRYPTED_FILE}" 
+
     - name: extract the tar
       shell:
         cmd: |
           cd /tmp/nebula/tar_stuff/
           {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/extract out.tar
-      become: true
 
+          chown "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}":"{{ hostvars[inventory_hostname].ansible_facts.user_gid }}" * 
+          
     # backup last added ca.crt
     - name: move files so network has some time to come up with new files
       copy: 
@@ -440,7 +525,7 @@
       with_items:
         - ca.crt
 
-- name: upload .enc to server (currently priate network)
+- name: upload .enc to server (currently priate network) for later downloading 
   
   hosts: 10.10.10.8
   # any_errors_fatal: true
@@ -457,9 +542,6 @@
     - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
     - vars/other_hosts.yml
 
-  tags:
-  - local_upload
-
   tasks: 
 
     # - name: Copy using inline content
@@ -468,9 +550,7 @@
     #     content: "{{hostvars}}"
     #     dest: /tmp/ansible.hosts.json
     #   run_once: true
-  
-    # - meta: end_play
-    
+      
     - name: make sure hot nebula directory exists
       file: 
         path: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula"
@@ -479,7 +559,7 @@
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true   
 
-    - name: "upload hosts .enc files"
+    - name: "upload hosts config.enc files"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
@@ -487,29 +567,29 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: "upload extra hosts .enc files"
+    - name: "upload extra hosts config.enc files"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
         src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
       loop: "{{other_hosts | dict2items}}"
       run_once: true
- 
-# - name: upload ca public cert to cloud
-  
-#   hosts: 10.10.10.1 
-#   any_errors_fatal: true
 
-#   vars: 
-#     work_dir: /tmp/yeltnar-ansible
+    - name: "upload hosts pass.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
 
-#   tasks: 
-#     - name: "upload cert"
-#       copy:  
-#         backup: false
-#         dest: "~/playin/caddy-cloud/hot/ca.crt"
-#         src: "{{work_dir}}_orch/ca.crt"
-
+    - name: "upload extra hosts pass.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
 
 - name: create the systemd service 
 
@@ -530,6 +610,7 @@
     - vars/other_hosts.yml
 
   tasks: 
+
     # TODO WARNING This is a copy command that depends on localhost having it
     - name: create systemd service
       copy: 

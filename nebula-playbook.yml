@@ -279,7 +279,6 @@
       local_action: 
         module: shell
         cmd: |
-          set -x
           cd {{work_dir}}_orch/{{item.value.name}}
 
           PUBSSHKEY={{item.value.public_key_location}}
@@ -287,6 +286,10 @@
           FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
           ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
           ENCRYPTED_FILE_PASSWORD={{work_dir}}_orch/{{item.value.name}}/out.pass.enc; 
+
+          if [ ! -e $PUBSSHKEY ]; then
+            exit -1
+          fi
 
           openssl rand -out secret.key 32
           openssl enc -aes-256-cbc -e -pbkdf2 -pass file:secret.key -a -iter 100000 -salt -in "${FILE_TO_ENCRYPT}" -out "${ENCRYPTED_FILE}" 
@@ -305,7 +308,7 @@
       local_action: 
         module: shell
         cmd: |
-          cd {{work_dir}}
+          cd {{work_dir}}_orch/{{item.value.name}}
 
           PUBSSHKEY={{item.value.public_key_location}}
           PUBKEY={{var_dir_orch}}/{{item.value.name}}.pkcs8
@@ -317,15 +320,14 @@
             exit -1
           fi
 
-          echo {{item.value.name}} > $FILE_TO_ENCRYPT
-
           openssl rand -out secret.key 32
-          openssl aes-256-cbc -in "${FILE_TO_ENCRYPT}" -out "${ENCRYPTED_FILE}" -pass file:secret.key
+          openssl enc -aes-256-cbc -e -pbkdf2 -pass file:secret.key -a -iter 100000 -salt -in "${FILE_TO_ENCRYPT}" -out "${ENCRYPTED_FILE}" 
           
           ssh-keygen -e -f "${PUBSSHKEY}" -m PKCS8 > "${PUBKEY}"
-          openssl pkeyutl -encrypt -pubin -inkey "${PUBKEY}" -in "secret.key" -out "${ENCRYPTED_FILE_PASSWORD}"
+          openssl pkeyutl -encrypt -pubin -inkey "${PUBKEY}" -in "secret.key" -out "${ENCRYPTED_FILE_PASSWORD}" 2>&1 | tee /tmp/{{item.value.name}}.enc.log
 
-          rm secret.key
+          rm secret.key # delete rsa secret
+
       loop: "{{other_hosts | dict2items}}"
       loop_control:
         loop_var: item

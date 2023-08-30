@@ -511,13 +511,6 @@
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
     var_dir: "/var/yeltnar-nebula"
-    # executable_dir # is found in vars/{os_type}/{processor_arch}
-
-  vars_files:
-    - nebula-config.yml
-    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
-    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
-    - vars/other_hosts.yml
 
   tasks: 
 

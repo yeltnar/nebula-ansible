@@ -386,7 +386,7 @@
     
     - name: make sure tar_stuff directory exists
       file: 
-        path: /tmp/nebula/tar_stuff/
+        path: "{{var_dir}}/tar_stuff/"
         state: directory
         owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
@@ -472,7 +472,7 @@
 
     - name: make sure /tmp/nebula directory exists
       file: 
-        path: "/tmp/nebula/tar_stuff/"
+        path: "{{var_dir}}/tar_stuff/"
         state: directory
         owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
@@ -482,14 +482,14 @@
     - name: upload config.enc file 
       copy: 
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
-        dest: "/tmp/nebula/tar_stuff/out.tar.enc"
+        dest: "{{var_dir}}/tar_stuff/out.tar.enc"
         # backup: true
     
     # TODO WARNING: this depends on communication between the two machines... we want to avoid this
     - name: upload password.enc file 
       copy: 
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.pass.enc"
-        dest: "/tmp/nebula/tar_stuff/out.pass.enc"
+        dest: "{{var_dir}}/tar_stuff/out.pass.enc"
         # backup: true
 
 - name: setup hosts new config files
@@ -519,13 +519,14 @@
     - name: decrypt with private rsa key
       shell: 
         cmd: |
-          cd /tmp/yeltnar-ansible_orch
+          mkdir -p {{var_dir}}/workdir # this will fail if var_dir is not there 
+          cd {{var_dir}}/workdir
 
           PRIVKEY={{var_dir}}/id_rsa          
-          ENCRYPTED_FILE_PASSWORD=/tmp/nebula/tar_stuff/out.pass.enc;
+          ENCRYPTED_FILE_PASSWORD={{var_dir}}/tar_stuff/out.pass.enc;
 
-          ENCRYPTED_FILE=/tmp/nebula/tar_stuff/out.tar.enc;
-          DECRYPTED_FILE=/tmp/nebula/tar_stuff/out.tar; 
+          ENCRYPTED_FILE={{var_dir}}/tar_stuff/out.tar.enc;
+          DECRYPTED_FILE={{var_dir}}/tar_stuff/out.tar; 
 
           openssl pkeyutl -decrypt -inkey "${PRIVKEY}" -in "${ENCRYPTED_FILE_PASSWORD}" -out "secret.key"
           
@@ -534,7 +535,7 @@
     - name: extract the tar
       shell:
         cmd: |
-          cd /tmp/nebula/tar_stuff/
+          cd {{var_dir}}/tar_stuff/
           {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/extract out.tar
 
           chown "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}":"{{ hostvars[inventory_hostname].ansible_facts.user_gid }}" * 
@@ -555,7 +556,7 @@
       copy: 
         backup: false
         dest: "{{nebula_config_client_folder}}/{{ item }}"
-        src: "/tmp/nebula/tar_stuff/{{ item }}"
+        src: "{{var_dir}}/tar_stuff/{{ item }}"
         remote_src: true
       become: true
       with_items: 
@@ -567,7 +568,7 @@
       copy: 
         backup: false
         dest: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.new"
-        src: "/tmp/nebula/tar_stuff/{{ item }}"
+        src: "{{var_dir}}/tar_stuff/{{ item }}"
         remote_src: true
       become: true
       with_items: 

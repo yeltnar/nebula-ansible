@@ -450,6 +450,7 @@
       loop: "{{other_hosts | dict2items}}"
       run_once: true
 
+# TODO change this to be based on downloading... if we don't have the most up to date version 
 - name: copy password and enc files to hosts
 
   hosts: nebula_nodes

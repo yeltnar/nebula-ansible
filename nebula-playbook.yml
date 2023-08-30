@@ -507,8 +507,6 @@
     - for-host
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
-    nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
     var_dir: "/var/yeltnar-nebula"
 

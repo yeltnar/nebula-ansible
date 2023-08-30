@@ -392,6 +392,64 @@
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
 
+- name: upload .enc to server (currently private network) for later downloading 
+  
+  hosts: 10.10.10.8
+  # any_errors_fatal: true
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - nebula-config.yml
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks: 
+
+    - name: make sure hot nebula directory exists
+      file: 
+        path: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula"
+        state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+
+    - name: "upload hosts config.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: "upload extra hosts config.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
+    - name: "upload hosts pass.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: "upload extra hosts pass.enc files"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
 - name: copy password and enc files to hosts
 
   hosts: nebula_nodes
@@ -420,14 +478,14 @@
       become: true   
     
     # TODO WARNING: this depends on communication between the two machines... we want to avoid this
-    - name: upload enc file 
+    - name: upload config.enc file 
       copy: 
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.tar.enc"
         dest: "/tmp/nebula/tar_stuff/out.tar.enc"
         # backup: true
     
     # TODO WARNING: this depends on communication between the two machines... we want to avoid this
-    - name: upload password enc file 
+    - name: upload password.enc file 
       copy: 
         src: "{{work_dir}}_orch/{{hostvars[inventory_hostname].name}}/out.pass.enc"
         dest: "/tmp/nebula/tar_stuff/out.pass.enc"
@@ -526,72 +584,6 @@
       become: true 
       with_items:
         - ca.crt
-
-- name: upload .enc to server (currently private network) for later downloading 
-  
-  hosts: 10.10.10.8
-  # any_errors_fatal: true
-
-  vars: 
-    work_dir: /tmp/yeltnar-ansible
-    nebula_ca_name: "yeltnar nebula ca"
-    nebula_config_client_folder: "/etc/nebula"
-    # executable_dir # is found in vars/{os_type}/{processor_arch}
-
-  vars_files:
-    - nebula-config.yml
-    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
-    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
-    - vars/other_hosts.yml
-
-  tasks: 
-
-    # - name: Copy using inline content
-    #   local_action:
-    #     module: ansible.builtin.copy
-    #     content: "{{hostvars}}"
-    #     dest: /tmp/ansible.hosts.json
-    #   run_once: true
-      
-    - name: make sure hot nebula directory exists
-      file: 
-        path: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula"
-        state: directory
-        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
-        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
-      become: true   
-
-    - name: "upload hosts config.enc files"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
-      loop: "{{hostvars | dict2items}}"
-      run_once: true
-
-    - name: "upload extra hosts config.enc files"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
-
-    - name: "upload hosts pass.enc files"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
-      loop: "{{hostvars | dict2items}}"
-      run_once: true
-
-    - name: "upload extra hosts pass.enc files"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
 
 - name: create the systemd service 
 

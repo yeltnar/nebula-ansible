@@ -527,7 +527,7 @@
       with_items:
         - ca.crt
 
-- name: upload .enc to server (currently priate network) for later downloading 
+- name: upload .enc to server (currently private network) for later downloading 
   
   hosts: 10.10.10.8
   # any_errors_fatal: true

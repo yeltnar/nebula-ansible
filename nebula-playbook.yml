@@ -418,7 +418,7 @@
         owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
 
-    - name: "upload hosts config.enc files"
+    - name: "upload hosts config.enc files to hosting server"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
@@ -426,7 +426,7 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: "upload extra hosts config.enc files"
+    - name: "upload extra hosts config.enc files to hosting server"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
@@ -434,7 +434,7 @@
       loop: "{{other_hosts | dict2items}}"
       run_once: true
 
-    - name: "upload hosts pass.enc files"
+    - name: "upload hosts pass.enc files to hosting server"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
@@ -442,7 +442,7 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: "upload extra hosts pass.enc files"
+    - name: "upload extra hosts pass.enc files to hosting server"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"

@@ -1,0 +1,87 @@
+
+- name: setup hosts new config files
+
+  hosts: nebula_nodes
+  any_errors_fatal: true
+  order: reverse_inventory
+
+  tags:
+    - for-host
+
+  vars: 
+
+  tasks: 
+
+    - name: decrypt with private rsa key
+      shell: 
+        cmd: |
+          mkdir -p $var_dir/workdir # this will fail if var_dir is not there 
+          cd $var_dir/workdir
+
+          PRIVKEY=$var_dir/id_rsa          
+          ENCRYPTED_FILE_PASSWORD=$var_dir/tar_stuff/out.pass.enc;
+
+          ENCRYPTED_FILE=$var_dir/tar_stuff/out.tar.enc;
+          DECRYPTED_FILE=$var_dir/tar_stuff/out.tar; 
+
+          openssl pkeyutl -decrypt -inkey "${PRIVKEY}" -in "${ENCRYPTED_FILE_PASSWORD}" -out "secret.key"
+          
+          openssl enc -aes-256-cbc -d -pbkdf2 -pass file:secret.key -a -iter 100000 -salt -in "${ENCRYPTED_FILE}" -out "${DECRYPTED_FILE}" 
+
+    - name: extract the tar
+      shell:
+        cmd: |
+          cd $var_dir/tar_stuff/
+          $HOME/playin/custom_bashrc/bin/extract out.tar
+
+          chown "$USER" * 
+          
+    # backup last added ca.crt
+    - name: move files so network has some time to come up with new files
+      copy: 
+        backup: false
+        dest: "$nebula_config_client_folder/inputfiles/ansible.ca.crt.old"
+        src: "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new"
+        remote_src: true
+      become: true
+      ignore_errors: yes
+      with_items: 
+        - ca.crt
+
+    - name: copy newly created crt, key, and config.yml to nebula directory 
+      copy: 
+        backup: false
+        dest: "$nebula_config_client_folder/{{ item }}"
+        src: "$var_dir/tar_stuff/{{ item }}"
+        remote_src: true
+      become: true
+      with_items: 
+        - host.crt
+        - host.key
+        - config.yml
+
+    - name: copy ca.crt file to nebula dir
+      copy: 
+        backup: false
+        dest: "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new"
+        src: "$var_dir/tar_stuff/ca.crt"
+        remote_src: true
+      become: true
+      with_items: 
+        - ca.crt
+
+    - name: join the ca.crt files to be used by the config
+      shell:
+        cmd: | 
+          cd "$nebula_config_client_folder"
+
+          out_file="$nebula_config_client_folder/ca.crt"
+
+          printf "" > "$out_file" # clear the current file
+
+          ls inputfiles | awk '/ca.crt/{print "cat inputfiles/" $1 " >> ca.crt"}' | bash
+
+        executable: /bin/bash
+      become: true 
+      with_items:
+        - ca.crt

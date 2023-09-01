@@ -54,7 +54,7 @@
           chmod 600 {{var_dir}}/id_rsa.pub
         creates: "{{var_dir}}/id_rsa"
    
-    - name: download public rsa key 
+    - name: download public rsa key from hosts to orchestrator 
       fetch: 
         flat: true
         # dest: "{{var_dir_orch}}/{{hostvars[inventory_hostname].name}}.pub"
@@ -134,6 +134,26 @@
         #creates: "/dev/nulll"
       run_once: true
       register: binaries_log
+
+- name: create nebula files on orchestrator
+
+  hosts: nebula_nodes
+  any_errors_fatal: true
+  order: reverse_inventory
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tasks:
 
     # TODO maybe dont if it exists
     - name: create nebula ca 

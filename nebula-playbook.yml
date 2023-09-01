@@ -21,6 +21,9 @@
     - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
     - vars/other_hosts.yml
 
+  tags: 
+    - setup-encryption
+
   tasks: 
     
     - name: make sure var directory exists on orch
@@ -46,7 +49,7 @@
     - name: generate ssh keys 
       shell:
         cmd : |
-          ssh-keygen -m PEM -N '' -q -f {{var_dir}}/id_rsa
+          ssh-keygen -m PEM -N "" -q -f "{{var_dir}}/id_rsa" -b 4096
           chmod 600 {{var_dir}}/id_rsa
           chmod 600 {{var_dir}}/id_rsa.pub
         creates: "{{var_dir}}/id_rsa"

@@ -4,6 +4,8 @@
 nebula_config_client_folder="/etc/nebula";
 var_dir="/var/yeltnar-nebula";
 
+SUDO_USER_HOME=$(su $SUDO_USER -c 'echo $HOME')
+
 localDecrypt(){
   export PRIVKEY=$var_dir/id_rsa          
   export AES_KEY_ENC=$var_dir/tar_stuff/out.pass.enc;
@@ -13,7 +15,6 @@ localDecrypt(){
 
   mkdir -p "$workdir" # this will fail if var_dir is not there 
 
-  SUDO_USER_HOME=$(su $SUDO_USER -c 'echo $HOME')
 
   $SUDO_USER_HOME/playin/custom_bashrc/bin/rsa_enc decrypt
 }
@@ -21,17 +22,16 @@ localDecrypt
 
 extractContent(){
   cd $var_dir/tar_stuff/
-  $HOME/playin/custom_bashrc/bin/extract out.tar
+  $SUDO_USER_HOME/playin/custom_bashrc/bin/extract out.tar
 
-  chown "$USER" *
+  chown "$SUDO_USER" *
 }
 extractContent
 
 moveFiles(){
   #  TODO ignore errors when copying 
   # need root
-  cp "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new"
-
+  cp "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" 
 
   # need root
   declare -a str_arr=("host.crt" "host.key" "config.yml")
@@ -40,7 +40,7 @@ moveFiles(){
       echo cp "$var_dir/tar_stuff/$val" "$nebula_config_client_folder/$val"
   done
 
-  # TODO need root 
+  # need root 
   cp "$var_dir/tar_stuff/ca.crt" "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new"
 }
 moveFiles

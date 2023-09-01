@@ -459,6 +459,22 @@
       loop: "{{other_hosts | dict2items}}"
       run_once: true
 
+    - name: "create file which has last updated time"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.date"
+        content: "{{ ansible_date_time.epoch }}"
+      loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+    - name: "create file which has last updated time"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.date"
+        content: "{{ ansible_date_time.epoch }}"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
 # TODO change this to be based on downloading... if we don't have the most up to date version 
 - name: copy password and enc files to hosts
 

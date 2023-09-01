@@ -13,9 +13,9 @@ localDecrypt(){
 
   mkdir -p "$workdir" # this will fail if var_dir is not there 
 
-  echo 'need to get suder user home while running as root'
-  exit -1;
-  $THIS_NEEDS_TO_BE_HOME/playin/custom_bashrc/bin/rsa_enc decrypt
+  SUDO_USER_HOME=$(su $SUDO_USER -c 'echo $HOME')
+
+  $SUDO_USER_HOME/playin/custom_bashrc/bin/rsa_enc decrypt
 }
 localDecrypt
 

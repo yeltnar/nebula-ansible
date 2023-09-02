@@ -19,7 +19,6 @@ localDecrypt(){
 
   mkdir -p "$workdir" # this will fail if var_dir is not there 
 
-
   $SUDO_USER_HOME/playin/custom_bashrc/bin/rsa_enc decrypt
 }
 localDecrypt
@@ -41,7 +40,7 @@ moveFiles(){
   declare -a str_arr=("host.crt" "host.key" "config.yml")
 
   for val in ${str_arr[@]}; do
-      echo cp "$var_dir/tar_stuff/$val" "$nebula_config_client_folder/$val"
+      cp "$var_dir/tar_stuff/$val" "$nebula_config_client_folder/$val"
   done
 
   # need root 

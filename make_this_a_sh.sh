@@ -1,8 +1,12 @@
 #!/bin/bash
 
 # vars from ansible 
-nebula_config_client_folder="/etc/nebula";
-var_dir="/var/yeltnar-nebula";
+if [ -z "$nebula_config_client_folder" ]; then
+  nebula_config_client_folder="/etc/nebula";
+fi
+if [ -z "$var_dir" ]; then 
+  var_dir="/var/yeltnar-nebula";
+fi
 
 SUDO_USER_HOME=$(su $SUDO_USER -c 'echo $HOME')
 
@@ -31,7 +35,7 @@ extractContent
 moveFiles(){
   #  TODO ignore errors when copying 
   # need root
-  cp "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" 
+  cp "$nebula_config_client_folder/inputfiles/ansible.ca.crt.new" "$nebula_config_client_folder/inputfiles/ansible.ca.crt.old" 
 
   # need root
   declare -a str_arr=("host.crt" "host.key" "config.yml")

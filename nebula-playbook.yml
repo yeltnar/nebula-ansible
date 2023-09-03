@@ -45,6 +45,12 @@
         owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
+
+    # - name: delete old key
+    #   file: 
+    #     path: "{{var_dir}}/id_rsa"
+    #     state: absent
+    #   become: true
     
     - name: generate ssh keys 
       shell:
@@ -459,6 +465,13 @@
       loop: "{{other_hosts | dict2items}}"
       run_once: true
 
+    - name: "upload ca.crt public file"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/"
+        src: "{{work_dir}}/ca.crt"
+      run_once: true
+
     - name: "create file which has last updated time"
       copy:
         backup: false
@@ -532,77 +545,25 @@
     var_dir: "/var/yeltnar-nebula"
 
   tasks: 
+  
+    - name: "upload script which updates nebula files"
+      copy:
+        dest: "{{ var_dir }}/process_tar.sh"
+        src: "{{ playbook_dir }}/process_tar.sh"
+        mode: '500'
+      # loop: "{{hostvars | dict2items}}"
+      # run_once: true
 
-    - name: decrypt with private rsa key
+    # - meta: end_play
+
+    - name: run script to dec, extract, move to correct location 
       shell: 
         cmd: |
-          export PRIVKEY={{var_dir}}/id_rsa          
-          export AES_KEY_ENC={{var_dir}}/tar_stuff/out.pass.enc;
-          export ENCRYPTED_FILE={{var_dir}}/tar_stuff/out.tar.enc;
-          export DECRYPTED_FILE={{var_dir}}/tar_stuff/out.tar; 
-          export workdir="{{var_dir}}/workdir"
+          export nebula_config_client_folder="{{nebula_config_client_folder}}"
+          export var_dir="{{var_dir}}"
 
-          mkdir -p "$workdir" # this will fail if var_dir is not there 
-
-          {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/rsa_enc decrypt
-
-    - name: extract the tar
-      shell:
-        cmd: |
-          cd {{var_dir}}/tar_stuff/
-          {{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/custom_bashrc/bin/extract out.tar
-
-          chown "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}":"{{ hostvars[inventory_hostname].ansible_facts.user_gid }}" * 
-          
-    # backup last added ca.crt
-    - name: move files so network has some time to come up with new files
-      copy: 
-        backup: false
-        dest: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.old"
-        src: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.new"
-        remote_src: true
+          {{ var_dir }}/process_tar.sh
       become: true
-      ignore_errors: yes
-      with_items: 
-        - ca.crt
-
-    - name: copy newly created crt, key, and config.yml to nebula directory 
-      copy: 
-        backup: false
-        dest: "{{nebula_config_client_folder}}/{{ item }}"
-        src: "{{var_dir}}/tar_stuff/{{ item }}"
-        remote_src: true
-      become: true
-      with_items: 
-        - host.crt
-        - host.key
-        - config.yml
-
-    - name: copy ca.crt file to nebula dir
-      copy: 
-        backup: false
-        dest: "{{nebula_config_client_folder}}/inputfiles/ansible.{{ item }}.new"
-        src: "{{var_dir}}/tar_stuff/{{ item }}"
-        remote_src: true
-      become: true
-      with_items: 
-        - ca.crt
-
-    - name: join the ca.crt files to be used by the config
-      shell:
-        cmd: | 
-          cd "{{nebula_config_client_folder}}"
-
-          out_file="{{nebula_config_client_folder}}/{{item}}"
-
-          printf "" > "$out_file" # clear the current file
-
-          ls inputfiles | awk '/{{item}}/{print "cat inputfiles/" $1 " >> {{item}}"}' | bash
-
-        executable: /bin/bash
-      become: true 
-      with_items:
-        - ca.crt
 
 - name: create the systemd service 
 
@@ -624,6 +585,8 @@
     - vars/other_hosts.yml
 
   tasks: 
+
+    - meta: end_play
 
     # TODO WARNING This is a copy command that depends on localhost having it
     - name: create systemd service

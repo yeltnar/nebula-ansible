@@ -4,6 +4,7 @@
 
 # TODO don't use /tmp for files like nebula binaries and signing ca(?)
 
+# TODO move 'extra hosts' into the hosts file, and use different name 
 ---
 - name: set up encryption
 
@@ -570,6 +571,7 @@
 
     # - meta: end_play
 
+    # TODO change to 'check for update' script; this would also be run with sudo chron
     - name: run script to dec, extract, move to correct location 
       shell: 
         cmd: |

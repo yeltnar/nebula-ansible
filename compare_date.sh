@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # this needs to be run as root for non-phones... like not with sudo, but change to the root user... for some reason 
 # ie sudo su -c './compare_date.sh'
 
@@ -40,6 +42,7 @@ else
 fi
 
 download(){
+    # TODO !!! remove `-k`
     curl -k -o "$tar_location/out.pass.enc" "$BASE_URI/$DEVICE_NAME.pass.enc"
     curl -k -o "$tar_location/out.tar.enc" "$BASE_URI/$DEVICE_NAME.tar.enc"
 }
@@ -54,17 +57,42 @@ process(){
 }
 
 takeActions(){
+     # TODO make sure we're not a phone for restartNebula
     download &&
     process && 
-    restartNebula # TODO make sure we're not a phone
+    restartNebula
+
+    # TODO notify it got a new config 
+}
+
+changeHost(){
+    export HOST=$SECONDARY_HOST;
+    export PORT=$SECONDARY_PORT;
+    echo "changed to $SECONDARY_HOST:$SECONDARY_PORT";
 }
 
 if [ -e "$TEST_FILE_PATH" ]; then
 
+    ping -c1 $HOST || changeHost;
+
+    echo "HOST is $HOST"
+    echo "PORT is $PORT"
+
+    export BASE_URI="https://$HOST:$PORT/nebula"
+
+    echo "$BASE_URI/$DEVICE_NAME.date"
     remote_date=$(curl -k "$BASE_URI/$DEVICE_NAME.date" 2>/dev/null )
     local_date=$(date -r "$TEST_FILE_PATH" "+%s")
-    #            date -r  out.tar.enc       +%s
 
+    if [ -z "$remote_date" ]; then
+        echo "\$remote_date is empty">&2
+        exit -1;
+    fi
+
+    if [ -z "$local_date" ]; then
+        echo "\$local_date is empty">&2
+        exit -1;
+    fi
 
     # test "$remote_date" > "$local_date" && echo true || echo false
 
@@ -76,6 +104,7 @@ if [ -e "$TEST_FILE_PATH" ]; then
         takeActions
     else
         echo 'No new version found';
+        exit -1;
     fi
 
 else

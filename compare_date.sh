@@ -56,8 +56,24 @@ process(){
     ./process_tar.sh 
 }
 
+notifyNewVersion(){
+    if [ -z "$SUDO_USER" ]; then # not running as root, use current info 
+        BASHRC_HOME="$HOME";
+        REAL_USER="$USER"
+    else
+        REAL_USER=$SUDO_USER
+        BASHRC_HOME=$(su $REAL_USER -c 'echo $HOME')
+        export bashrc_folder="$BASHRC_HOME/playin/custom_bashrc"
+    fi
+
+    PATH="$PATH:$BASHRC_HOME/playin/custom_bashrc/bin"
+
+    send_push "New nebula config" "$DEVICE_NAME";
+}
+
 takeActions(){
-     # TODO make sure we're not a phone for restartNebula
+    # TODO make sure we're not a phone for restartNebula
+    notifyNewVersion
     download &&
     process && 
     restartNebula
@@ -71,6 +87,8 @@ changeHost(){
     echo "changed to $SECONDARY_HOST:$SECONDARY_PORT";
 }
 
+date
+
 if [ -e "$TEST_FILE_PATH" ]; then
 
     ping -c1 $HOST || changeHost;
@@ -80,9 +98,11 @@ if [ -e "$TEST_FILE_PATH" ]; then
 
     export BASE_URI="https://$HOST:$PORT/nebula"
 
+    set -x
     echo "$BASE_URI/$DEVICE_NAME.date"
     remote_date=$(curl -k "$BASE_URI/$DEVICE_NAME.date" 2>/dev/null )
     local_date=$(date -r "$TEST_FILE_PATH" "+%s")
+    set +x
 
     if [ -z "$remote_date" ]; then
         echo "\$remote_date is empty">&2

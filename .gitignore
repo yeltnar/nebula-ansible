@@ -6,3 +6,4 @@
 backup.sh
 borg_repos.json
 vars/other_hosts.yml
+.env

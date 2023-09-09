@@ -11,12 +11,18 @@ if [ -z "$var_dir" ]; then
   var_dir="/var/yeltnar-nebula";
 fi
 
+REAL_USER="";
+BASHRC_HOME="";
+
 if [ -z "$SUDO_USER" ]; then # not running as root, use current info 
   BASHRC_HOME="$HOME";
   REAL_USER="$USER"
 else
   REAL_USER=$SUDO_USER
+  set -x
   BASHRC_HOME=$(su $REAL_USER -c 'echo $HOME')
+  export bashrc_folder="$BASHRC_HOME/playin/custom_bashrc"
+  set +x
 fi
 
 localDecrypt(){

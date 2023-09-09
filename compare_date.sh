@@ -68,7 +68,7 @@ notifyNewVersion(){
 
     PATH="$PATH:$BASHRC_HOME/playin/custom_bashrc/bin"
 
-    send_push "New nebula config" "$DEVICE_NAME";
+    send_push "New nebula config" "$DEVICE_NAME - `date`";
 }
 
 takeActions(){

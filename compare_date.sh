@@ -11,10 +11,6 @@ if [ -e '.env' ]; then
     source .env;
 fi
 
-if [ -z "$BASE_URI" ]; then
-    echo "\$BASE_URI is not defined; Exiting";
-    exit -1;
-fi
 if [ -z "$DEVICE_NAME" ]; then
     echo "\$DEVICE_NAME is not defined; Exiting";
     exit -1;
@@ -42,9 +38,8 @@ else
 fi
 
 download(){
-    # TODO !!! remove `-k`
-    curl -k -o "$tar_location/out.pass.enc" "$BASE_URI/$DEVICE_NAME.pass.enc"
-    curl -k -o "$tar_location/out.tar.enc" "$BASE_URI/$DEVICE_NAME.tar.enc"
+    curl $CURL_OPTIONS -o "$tar_location/out.pass.enc" "$BASE_URI/$DEVICE_NAME.pass.enc"
+    curl $CURL_OPTIONS -o "$tar_location/out.tar.enc" "$BASE_URI/$DEVICE_NAME.tar.enc"
 }
 
 restartNebula(){
@@ -100,7 +95,7 @@ if [ -e "$TEST_FILE_PATH" ]; then
 
     set -x
     echo "$BASE_URI/$DEVICE_NAME.date"
-    remote_date=$(curl -k "$BASE_URI/$DEVICE_NAME.date" 2>/dev/null )
+    remote_date=$(curl $CURL_OPTIONS "$BASE_URI/$DEVICE_NAME.date" 2>/dev/null )
     local_date=$(date -r "$TEST_FILE_PATH" "+%s")
     set +x
 

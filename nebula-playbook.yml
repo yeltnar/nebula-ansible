@@ -578,6 +578,14 @@
       # loop: "{{hostvars | dict2items}}"
       # run_once: true
   
+    - name: "upload cert for private network"
+      copy:
+        dest: "{{ var_dir }}/knownca.pem"
+        src: "knownca.pem"
+        mode: '500'
+      # loop: "{{hostvars | dict2items}}"
+      # run_once: true
+  
     - name: "create .env file for scripts"
       copy:
         dest: "{{ var_dir }}/.env"
@@ -586,11 +594,11 @@
           export PORT="{{ hostvars[inventory_hostname].update_daemon.PORT }}"
           export SECONDARY_HOST="{{ hostvars[inventory_hostname].update_daemon.SECONDARY_HOST }}"
           export SECONDARY_PORT="{{ hostvars[inventory_hostname].update_daemon.SECONDARY_PORT }}"
-          export BASE_URI="https://$HOST/nebula"
           export DEVICE_NAME="{{ hostvars[inventory_hostname].name }}"
           export TEST_FILE_PATH="{{var_dir}}/tar_stuff/out.tar.enc"
           export var_dir="{{var_dir}}"
           export nebula_config_client_folder="{{nebula_config_client_folder}}"
+          export CURL_OPTIONS="--cacert ./knownca.pem"
         mode: '400'
       # loop: "{{hostvars | dict2items}}"
       # run_once: true

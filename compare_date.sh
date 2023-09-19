@@ -38,8 +38,12 @@ else
 fi
 
 download(){
+    echo "downloading $DEVICE_NAME files from $BASE_URI";
+    mkdir -p $tar_location
+    set -x
     curl $CURL_OPTIONS -o "$tar_location/out.pass.enc" "$BASE_URI/$DEVICE_NAME.pass.enc"
     curl $CURL_OPTIONS -o "$tar_location/out.tar.enc" "$BASE_URI/$DEVICE_NAME.tar.enc"
+    set +x
 }
 
 restartNebula(){
@@ -48,6 +52,7 @@ restartNebula(){
 }
 
 process(){
+    echo process
     ./process_tar.sh 
 }
 
@@ -68,8 +73,8 @@ notifyNewVersion(){
 
 takeActions(){
     # TODO make sure we're not a phone for restartNebula
-    notifyNewVersion
     download &&
+    notifyNewVersion && 
     process && 
     restartNebula
 
@@ -84,14 +89,14 @@ changeHost(){
 
 date
 
+ping -c1 $HOST || changeHost;
+
+echo "HOST is $HOST"
+echo "PORT is $PORT"
+
+export BASE_URI="https://$HOST:$PORT/nebula"
+
 if [ -e "$TEST_FILE_PATH" ]; then
-
-    ping -c1 $HOST || changeHost;
-
-    echo "HOST is $HOST"
-    echo "PORT is $PORT"
-
-    export BASE_URI="https://$HOST:$PORT/nebula"
 
     set -x
     echo "$BASE_URI/$DEVICE_NAME.date"

@@ -6,6 +6,27 @@
 
 # TODO move 'extra hosts' into the hosts file, and use different name 
 ---
+- name: testing cron
+  tags:
+  - onlythisone
+  - never
+
+  hosts: localhost
+
+  tasks:  
+    - name: Ensure a job that runs at 2 and 5 exists. Creates an entry like "0 5,2 * * ls -alh > /dev/null"
+      become: true
+      ansible.builtin.cron:
+        name: "cron test"
+        minute: "*"
+        hour: "*"
+        job: "date > /tmp/ansible-cron.txt"
+        state: absent
+        # state: present
+
+    - meta: end_play
+
+
 - name: set up encryption
 
   hosts: nebula_nodes
@@ -166,6 +187,7 @@
   tags:
   - minimal
 
+  # TODO see about using tmpfs 
   tasks:
 
     # TODO maybe dont if it exists

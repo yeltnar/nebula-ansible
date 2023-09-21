@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+
+    <key>Label</key>
+    <string>com.yeltnar.nebula.plist</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardErrorPath</key>
+    <string>/etc/yeltnar_nebula/daemon_stderr.log</string>
+
+    <key>StandardOutPath</key>
+    <string>/etc/yeltnar_nebula/daemon_stdout.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string><![CDATA[/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin]]></string>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/etc/yeltnar_nebula</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <!-- <string>/tmp/yeltnar-nebula/nebula</string> -->
+      <string>/usr/local/bin/nebula</string>
+      <string>-config</string>
+      <string>/etc/nebula/config.yml</string>
+    </array>
+
+    <key>KeepAlive</key>
+    <true/>
+
+  </dict>
+</plist>

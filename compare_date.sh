@@ -43,6 +43,7 @@ download(){
     set -x
     curl $CURL_OPTIONS -o "$tar_location/out.pass.enc" "$BASE_URI/$DEVICE_NAME.pass.enc"
     curl $CURL_OPTIONS -o "$tar_location/out.tar.enc" "$BASE_URI/$DEVICE_NAME.tar.enc"
+    curl $CURL_OPTIONS -o "$tar_location/remote_updated.date" "$BASE_URI/$DEVICE_NAME.date"
     set +x
 }
 

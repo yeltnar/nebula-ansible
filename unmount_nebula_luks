@@ -1,0 +1,5 @@
+decrypted_mnt="/tmp/mounted_disk"
+
+sudo umount "$decrypted_mnt"
+sudo cryptsetup close /dev/mapper/disk_img_decrypted
+

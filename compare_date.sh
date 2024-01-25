@@ -15,8 +15,8 @@ if [ -z "$DEVICE_NAME" ]; then
     echo "\$DEVICE_NAME is not defined; Exiting";
     exit -1;
 fi
-if [ -z "$TEST_FILE_PATH" ]; then
-    echo "\$TEST_FILE_PATH is not defined; Exiting";
+if [ -z "$DATE_FILE_PATH" ]; then
+    echo "\$DATE_FILE_PATH is not defined; Exiting";
     exit -1;
 fi
 
@@ -102,7 +102,7 @@ if [ -e "$TEST_FILE_PATH" ]; then
     set -x
     echo "$BASE_URI/$DEVICE_NAME.date"
     remote_date=$(curl $CURL_OPTIONS "$BASE_URI/$DEVICE_NAME.date" 2>/dev/null )
-    local_date=$(date -r "$TEST_FILE_PATH" "+%s")
+    local_date=$(cat "$DATE_FILE_PATH")
     set +x
 
     if [ -z "$remote_date" ]; then

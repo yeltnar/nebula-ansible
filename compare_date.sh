@@ -97,7 +97,7 @@ echo "PORT is $PORT"
 
 export BASE_URI="https://$HOST:$PORT/nebula"
 
-if [ -e "$TEST_FILE_PATH" ]; then
+if [ -e "$DATE_FILE_PATH" ]; then
 
     set -x
     echo "$BASE_URI/$DEVICE_NAME.date"

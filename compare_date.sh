@@ -48,6 +48,8 @@ download(){
 }
 
 restartNebula(){
+    echo 'waiting to restarting nebula';
+    sleep 15;
     echo 'restarting nebula';
     systemctl restart nebula && echo 'nebula restarted' || echo 'nebula could not restart'
 }

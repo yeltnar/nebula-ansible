@@ -617,7 +617,7 @@
           export SECONDARY_HOST="{{ hostvars[inventory_hostname].update_daemon.SECONDARY_HOST }}"
           export SECONDARY_PORT="{{ hostvars[inventory_hostname].update_daemon.SECONDARY_PORT }}"
           export DEVICE_NAME="{{ hostvars[inventory_hostname].name }}"
-          export TEST_FILE_PATH="{{var_dir}}/tar_stuff/out.tar.enc"
+          export DATE_FILE_PATH="{{var_dir}}/tar_stuff/remote_updated.date"
           export var_dir="{{var_dir}}"
           export nebula_config_client_folder="{{nebula_config_client_folder}}"
           export CURL_OPTIONS="--cacert ./knownca.pem"

@@ -628,14 +628,14 @@
     # - meta: end_play
 
     # TODO change to 'check for update' script; this would also be run with sudo chron
-    - name: run script to dec, extract, move to correct location 
-      shell: 
-        cmd: |
-          cd {{ var_dir }}
-          touch {{ var_dir }}/compare_date.log; 
-          chown {{ hostvars[inventory_hostname].ansible_facts.user_uid }}:{{ hostvars[inventory_hostname].ansible_facts.user_gid }} {{ var_dir }}/compare_date.log
-          {{ var_dir }}/compare_date.sh 2>&1 | tee {{ var_dir }}/compare_date.log
-      become: true
+    # - name: run script to dec, extract, move to correct location 
+    #   shell: 
+    #     cmd: |
+    #       cd {{ var_dir }}
+    #       touch {{ var_dir }}/compare_date.log; 
+    #       chown {{ hostvars[inventory_hostname].ansible_facts.user_uid }}:{{ hostvars[inventory_hostname].ansible_facts.user_gid }} {{ var_dir }}/compare_date.log
+    #       {{ var_dir }}/compare_date.sh 2>&1 | tee {{ var_dir }}/compare_date.log
+    #   become: true
 
 - name: create the systemd service 
 

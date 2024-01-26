@@ -347,6 +347,8 @@
           if [ ! -e $PUB_KEY ]; then
             exit -1
           fi
+
+          mkdir -p "$workdir"
           
           $HOME/playin/custom_bashrc/bin/rsa_enc encrypt
 

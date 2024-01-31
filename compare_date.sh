@@ -31,11 +31,7 @@ if [ "$NOT_ROOT" = 'false' ]; then
     fi
 fi
 
-if [ "true" = "$NOT_ROOT" ]; then
-  export tar_location="$PWD";
-else
   export tar_location="$var_dir/tar_stuff"; # this will fail if the tar dir does not exsist 
-fi
 
 download(){
     echo "downloading $DEVICE_NAME files from $BASE_URI";

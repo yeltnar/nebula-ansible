@@ -70,22 +70,22 @@ joinCaCrts(){
 if [ "true" = "$NOT_ROOT" ]; then
 
   if [ -z "$PRIVKEY" ]; then
-    export PRIVKEY=$PWD/id_rsa
+    export PRIVKEY=`readlink -f $var_dir/id_rsa`;
   fi
   if [ -z "$AES_KEY_ENC" ]; then
-    export AES_KEY_ENC=$PWD/out.pass.enc;
+    export AES_KEY_ENC=`readlink -f $var_dir/tar_stuff/out.pass.enc`;
   fi
   if [ -z "$ENCRYPTED_FILE" ]; then
-    export ENCRYPTED_FILE=$PWD/out.tar.enc;
+    export ENCRYPTED_FILE=`readlink -f $var_dir/tar_stuff/out.tar.enc`;
   fi
   if [ -z "$DECRYPTED_FILE" ]; then
-    export DECRYPTED_FILE=$PWD/out.tar; 
+    export DECRYPTED_FILE=`readlink -f $var_dir/tar_stuff/out.tar;` 
   fi
   if [ -z "$workdir" ]; then
-    export workdir="$PWD"
+    export workdir=`readlink -f "$var_dir/tar_stuff"`;
   fi
   if [ -z "$tar_location" ]; then
-    export tar_location="$PWD";
+    export tar_location=`readlink -f "$var_dir/tar_stuff"`;
   fi
 
   localDecrypt

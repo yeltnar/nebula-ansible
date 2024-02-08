@@ -9,3 +9,4 @@ vars/other_hosts.yml
 .env
 knownca.pem
 id_rsa
+yeltnar-nebula/tar_stuff

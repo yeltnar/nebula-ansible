@@ -8,3 +8,4 @@ borg_repos.json
 vars/other_hosts.yml
 .env
 knownca.pem
+id_rsa

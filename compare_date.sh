@@ -7,6 +7,10 @@
 # https://hot.mini.lan/nebula/pixel6.pass.enc
 # https://hot.mini.lan/nebula/pixel6.tar.enc
 
+if [ -e '.default.env' ]; then
+    source .default.env;
+fi
+
 if [ -e '.env' ]; then
     source .env;
 fi

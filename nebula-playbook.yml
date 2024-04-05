@@ -99,6 +99,34 @@
           PUBSSHKEY={{var_dir_orch}}/{{hostvars[inventory_hostname].name}}/id_rsa.pub
           chmod 600 $PUBSSHKEY
    
+- name: set up encryption for other hosts
+
+  hosts: nebula_nodes
+
+  vars: 
+    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+  
+  vars_files:
+    - vars/other_hosts.yml
+
+  tags:
+  - setup-encryption
+
+  tasks: 
+    - name: generate ssh keys for other hosts
+      shell:
+        cmd : |
+          ssh-keygen -m PEM -N "" -q -f "{{var_dir_orch}}/{{item.value.name}}/id_rsa" -b 4096
+          chmod 600 {{var_dir_orch}}/{{item.value.name}}/id_rsa
+          chmod 600 {{var_dir_orch}}/{{item.value.name}}/id_rsa.pub
+        creates: "{{var_dir_orch}}/{{item.value.name}}/id_rsa"
+
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
 - name: set up orchestrator
 
   hosts: nebula_nodes

@@ -17,11 +17,11 @@ fi
 
 if [ -z "$DEVICE_NAME" ]; then
     echo "\$DEVICE_NAME is not defined; Exiting";
-    exit -1;
+    exit 101;
 fi
 if [ -z "$DATE_FILE_PATH" ]; then
     echo "\$DATE_FILE_PATH is not defined; Exiting";
-    exit -1;
+    exit 102;
 fi
 
 if [ -z "$NOT_ROOT" ]; then
@@ -31,7 +31,7 @@ fi
 if [ "$NOT_ROOT" = 'false' ]; then
     if [ -z "$var_dir" ]; then
         echo "var_dir is not defined; exiting"
-        exit -1;
+        exit 103;
     fi
 fi
 
@@ -109,12 +109,12 @@ if [ -e "$DATE_FILE_PATH" ]; then
 
     if [ -z "$remote_date" ]; then
         echo "\$remote_date is empty">&2
-        exit -1;
+        exit 104;
     fi
 
     if [ -z "$local_date" ]; then
         echo "\$local_date is empty">&2
-        exit -1;
+        exit 105;
     fi
 
     # test "$remote_date" > "$local_date" && echo true || echo false
@@ -127,7 +127,7 @@ if [ -e "$DATE_FILE_PATH" ]; then
         takeActions
     else
         echo 'No new version found';
-        exit -1;
+        exit;
     fi
 
 else

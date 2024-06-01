@@ -87,6 +87,7 @@ takeActions(){
 changeHost(){
     export HOST=$SECONDARY_HOST;
     export PORT=$SECONDARY_PORT;
+    export CURL_OPTIONS=$SECONDARY_CURL_OPTIONS;
     echo "changed to $SECONDARY_HOST:$SECONDARY_PORT";
 }
 

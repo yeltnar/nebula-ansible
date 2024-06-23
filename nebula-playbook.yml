@@ -8,7 +8,6 @@
 ---
 - name: testing cron
   tags:
-  - onlythisone
   - never
 
   hosts: localhost
@@ -117,12 +116,15 @@
 
   tasks: 
     - name: generate ssh keys for other hosts
-      shell:
+      local_action: 
+        module: shell
         cmd : |
+          echo {{var_dir_orch}}/{{item.value.name}}/id_rsa.pub does not exsist
+          file {{var_dir_orch}}/{{item.value.name}}/id_rsa.pub
           ssh-keygen -t rsa -m PEM -N "" -q -f "{{var_dir_orch}}/{{item.value.name}}/id_rsa" -b 4096
           chmod 600 {{var_dir_orch}}/{{item.value.name}}/id_rsa
           chmod 600 {{var_dir_orch}}/{{item.value.name}}/id_rsa.pub
-        creates: "{{var_dir_orch}}/{{item.value.name}}/id_rsa"
+        creates: "{{var_dir_orch}}/{{item.value.name}}/id_rsa.pub"
 
       loop: "{{other_hosts | dict2items}}"
       loop_control:

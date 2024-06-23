@@ -410,6 +410,13 @@
       loop_control:
         loop_var: item
       run_once: true
+
+    # TODO create squashfs image for each host AND extra host
+    # 1. make random key for symetric encryption
+    # 2. encrypt symetric key with asymetric encryption public key 
+    # 3. make squashfs image from dir
+    # 4. add luks to squashfs
+    # 5. delete symetric key 
     
 - name: setup hosts
 

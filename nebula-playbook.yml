@@ -410,13 +410,66 @@
       loop_control:
         loop_var: item
       run_once: true
+      
+    - name: create encrypted squashfs with nebula files
+      local_action: 
+        module: shell
+        cmd: |
 
-    # TODO create squashfs image for each host AND extra host
-    # 1. make random key for symetric encryption
-    # 2. encrypt symetric key with asymetric encryption public key 
-    # 3. make squashfs image from dir
-    # 4. add luks to squashfs
-    # 5. delete symetric key 
+          export luks_key="/root/mykeyfile.key"; # TODO this needs to be the dir that is uploaded 
+          export luks_key_enc=$luks_key.enc
+          export sqfs_img="{{work_dir}}_orch/{{item.value.name}}/out.sqfs.img";
+
+          # 1. make random key for symetric encryption
+          dd bs=512 count=4 if=/dev/random of="$luks_key" iflag=fullblock;
+
+          # 2. encrypt symetric key with asymetric encryption public key 
+          openssl pkeyutl -encrypt -pubin -inkey "{{item.value.public_key_location}}" -in "$luks_key" -out "$luks_key_enc"
+
+          # 3. make squashfs image from dir. exclude tar files 
+          mksquashfs "{{work_dir}}_orch/{{item.value.name}}"  -wildcards -e "*.tar"
+          
+          # 4. add luks to squashfs
+          truncate -s +8M "$sqfs_img" # add some padding for encryption 
+          cryptsetup --key-file "$luks_key" -q reencrypt --encrypt --type luks2 --resilience none --disable-locks --reduce-device-size 8M "$sqfs_img" # add encryption 
+
+          # 5. delete symetric luks key 
+          rm "$luks_key";
+
+      loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
+    - name: create encrypted squashfs with nebula files for other hosts
+      local_action: 
+        module: shell
+        cmd: |
+
+          export luks_key="/root/mykeyfile.key"; # TODO this needs to be the dir that is uploaded 
+          export luks_key_enc=$luks_key.enc
+          export sqfs_img="{{work_dir}}_orch/{{item.value.name}}/out.sqfs.img";
+
+          # 1. make random key for symetric encryption
+          dd bs=512 count=4 if=/dev/random of="$luks_key" iflag=fullblock;
+
+          # 2. encrypt symetric key with asymetric encryption public key 
+          openssl pkeyutl -encrypt -pubin -inkey "{{item.value.public_key_location}}" -in "$luks_key" -out "$luks_key_enc"
+
+          # 3. make squashfs image from dir. exclude tar files 
+          mksquashfs "{{work_dir}}_orch/{{item.value.name}}"  -wildcards -e "*.tar"
+          
+          # 4. add luks to squashfs
+          truncate -s +8M "$sqfs_img" # add some padding for encryption 
+          cryptsetup --key-file "$luks_key" -q reencrypt --encrypt --type luks2 --resilience none --disable-locks --reduce-device-size 8M "$sqfs_img" # add encryption 
+
+          # 5. delete symetric luks key 
+          rm "$luks_key";
+
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
     
 - name: setup hosts
 

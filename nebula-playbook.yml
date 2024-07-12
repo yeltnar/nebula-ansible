@@ -332,7 +332,7 @@
 
           yq eval-all '. as $item ireduce ({}; . * $item)' {{playbook_dir}}/vars/nebula_default.reduced.yml changes.yml > config.yml
 
-      loop: "{{hostvars | dict2items}}"
+      loop: "{{other_hosts | dict2items}}"
       loop_control:
         loop_var: item
       run_once: true
@@ -370,14 +370,15 @@
         module: shell
         cmd: |
 
-          export workdir="{{var_dir}}/workdir"
+          export workdir="{{work_dir}}_orch/{{item.value.name}}/workdir"
           export FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
           export ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
           export PUB_KEY={{item.value.public_key_location}}
           export AES_KEY_ENC={{work_dir}}_orch/{{item.value.name}}/out.pass.enc; 
 
           if [ ! -e $PUB_KEY ]; then
-            exit -1
+            echo "error: public key not found" >&2;
+            exit 1
           fi
 
           mkdir -p "$workdir"
@@ -394,15 +395,18 @@
         module: shell
         cmd: |
 
-          export workdir="{{var_dir}}/workdir"
+          export workdir="{{work_dir}}_orch/{{item.value.name}}/workdir/"
           export FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
           export ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
           export PUB_KEY={{item.value.public_key_location}}
           export AES_KEY_ENC={{work_dir}}_orch/{{item.value.name}}/out.pass.enc; 
 
           if [ ! -e $PUB_KEY ]; then
-            exit -1
+            echo "error: public key not found" >&2;
+            exit 1
           fi
+
+          mkdir -p "$workdir"
           
           $HOME/playin/custom_bashrc/bin/rsa_enc encrypt
 

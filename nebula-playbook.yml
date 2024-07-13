@@ -715,7 +715,7 @@
       async: 5
       systemd: 
         name: nebula
-        state: restarted
+        state: "{{ hostvars[inventory_hostname].nebula_service_state | default('reloaded') }}"
         enabled: true
         no_block: yes
       become: true

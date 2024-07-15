@@ -115,7 +115,8 @@ if [ -e "$DATE_FILE_PATH" ]; then
 
     if [ -z "$local_date" ]; then
         echo "\$local_date is empty">&2
-        exit 105;
+	takeActions
+        exit;
     fi
 
     # test "$remote_date" > "$local_date" && echo true || echo false

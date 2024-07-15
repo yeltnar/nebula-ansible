@@ -7,6 +7,7 @@ fi
 if [ -z "$nebula_config_client_folder" ]; then
   nebula_config_client_folder="/etc/nebula";
 fi
+mkdir -p "$nebula_config_client_folder/inputfiles";
 if [ -z "$var_dir" ]; then 
   var_dir="/var/yeltnar-nebula";
 fi

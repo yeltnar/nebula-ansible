@@ -10,3 +10,4 @@ vars/other_hosts.yml
 knownca.pem
 id_rsa
 yeltnar-nebula/tar_stuff
+inventory.small.yml

@@ -25,8 +25,43 @@
 
     - meta: end_play
 
+- name: set up encryption on orch
 
-- name: set up encryption
+  hosts: nebula_nodes
+  any_errors_fatal: true
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tags: 
+    - setup-encryption
+    - on_orch
+
+  tasks: 
+    
+    - name: make sure var directory exists on orch
+      local_action:
+        module: file 
+        path: "{{var_dir_orch}}"
+        state: directory
+        owner: "1000" # these permissions are weird... they only work for one machine 
+        group:  "1000" # these permissions are weird... they only work for one machine 
+        # owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        # group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+      become: true
+      run_once: true
+  
+- name: set up encryption on hosts
 
   hosts: nebula_nodes
   any_errors_fatal: true
@@ -49,18 +84,6 @@
 
   tasks: 
     
-    - name: make sure var directory exists on orch
-      local_action:
-        module: file 
-        path: "{{var_dir_orch}}"
-        state: directory
-        owner: "1001" # these permissions are weird... they only work for one machine 
-        group:  "1001" # these permissions are weird... they only work for one machine 
-        # owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
-        # group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
-      become: true
-      run_once: true
-    
     - name: make sure var directory exists on hosts
       file:
         path: "{{var_dir}}"
@@ -68,12 +91,6 @@
         owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
-
-    # - name: delete old key
-    #   file: 
-    #     path: "{{var_dir}}/id_rsa"
-    #     state: absent
-    #   become: true
     
     - name: generate ssh keys 
       shell:
@@ -113,6 +130,7 @@
 
   tags:
   - setup-encryption
+    - on_orch
 
   tasks: 
     - name: generate ssh keys for other hosts
@@ -136,6 +154,9 @@
   hosts: nebula_nodes
   any_errors_fatal: true
   order: reverse_inventory
+
+  tags: 
+    - on_orch
 
   vars: 
     work_dir: /tmp/yeltnar-ansible
@@ -197,7 +218,7 @@
       run_once: true
       register: binaries_log
 
-- name: create nebula files on orchestrator
+- name: create nebula files on orchestrator for ansible hosts
 
   hosts: nebula_nodes
   any_errors_fatal: true
@@ -222,7 +243,6 @@
   # TODO see about using tmpfs 
   tasks:
 
-    # TODO maybe dont if it exists
     - name: create nebula ca 
       local_action:
         module: shell
@@ -242,16 +262,6 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    # TODO as it sits now, this can not be run on its own
-    - name: create extra nebula devices directories 
-      local_action:
-        module: shell
-        cmd: |
-          cd "{{work_dir}}_orch"
-          mkdir -p "{{item.value.name}}"
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
-
     - name: create nebula certs
       local_action:
         module: shell
@@ -267,22 +277,6 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: create nebula certs for extra devices
-      local_action:
-        module: shell
-        cmd: |
-          cd "{{work_dir}}_orch"
-          mkdir -p "{{item.value.name}}"
-
-          ./nebula-cert sign \
-          -out-crt {{item.value.name}}/host.crt \
-          -out-key {{item.value.name}}/host.key \
-          -name "{{item.value.name}}" \
-          -ip "{{item.value.nebula_ip}}" \
-          -groups "{{item.value.signed_groups}}" 
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
-
     - name: copy ca.crt into device directory
       local_action:
         module: shell
@@ -291,14 +285,6 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: copy ca.crt into extra devices' directory
-      local_action:
-        module: shell
-        cmd: |
-          cp "{{work_dir}}_orch/ca.crt" "{{work_dir}}_orch/{{item.value.name}}"
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
-    
     # create the config.yml for each host
     - name: create config for hosts
       local_action:
@@ -318,25 +304,6 @@
         loop_var: item
       run_once: true
     
-    # create the config.yml for each extra host
-    - name: create config for each extra host
-      local_action:
-        module: shell
-        cmd: |
-          mkdir -p "{{work_dir}}_orch"
-          cd "{{work_dir}}_orch"
-          mkdir -p "{{item.value.name}}"
-          cd "{{item.value.name}}"
-
-          echo "{{item.value.config_changes}}" | yq -P '.' > changes.yml 
-
-          yq eval-all '. as $item ireduce ({}; . * $item)' {{playbook_dir}}/vars/nebula_default.reduced.yml changes.yml > config.yml
-
-      loop: "{{other_hosts | dict2items}}"
-      loop_control:
-        loop_var: item
-      run_once: true
-    
     # create tar for each host
     - name: create tar for each host
       local_action:
@@ -351,25 +318,12 @@
         loop_var: item
       run_once: true
     
-    # create tar for each extra host
-    - name: create tar for each extra host
-      local_action:
-        module: shell
-        cmd: |
-          cd "{{work_dir}}_orch/{{item.value.name}}"
-
-          tar zcvf out.tar --exclude "*.tar" *
-
-      loop: "{{other_hosts | dict2items}}"
-      loop_control:
-        loop_var: item
-      run_once: true
-
     - name: encrypt with public rsa key for hosts
       local_action: 
         module: shell
         cmd: |
 
+          # work_dir is /tmp/yeltnar-ansible 
           export workdir="{{work_dir}}_orch/{{item.value.name}}/workdir"
           export FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
           export ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
@@ -386,6 +340,117 @@
           $HOME/playin/custom_bashrc/bin/rsa_enc encrypt
 
       loop: "{{hostvars | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+
+- name: create nebula files on orchestrator for other hosts
+
+  hosts: nebula_nodes
+  any_errors_fatal: true
+  order: reverse_inventory
+
+  tags: 
+    - on_orch
+    - minimal
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "/var/yeltnar-nebula"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  # TODO see about using tmpfs 
+  tasks:
+
+    # TODO maybe dont if it exists
+    - name: create nebula ca 
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          ./nebula-cert ca -name "{{nebula_ca_name}}"
+        creates: "{{work_dir}}_orch/ca.crt"
+      run_once: true
+
+    # TODO as it sits now, this can not be run on its own
+    - name: create extra nebula devices directories 
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
+    - name: create nebula certs for extra devices
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+
+          date > "/tmp/{{item.value.name}}.info.txt"
+          ls -alt "{{item.value.name}}" >> "/tmp/{{item.value.name}}.info.txt"
+
+          ./nebula-cert sign \
+          -out-crt {{item.value.name}}/host.crt \
+          -out-key {{item.value.name}}/host.key \
+          -name "{{item.value.name}}" \
+          -ip "{{item.value.nebula_ip}}" \
+          -groups "{{item.value.signed_groups}}" 
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
+    - name: copy ca.crt into extra devices' directory
+      local_action:
+        module: shell
+        cmd: |
+          cp "{{work_dir}}_orch/ca.crt" "{{work_dir}}_orch/{{item.value.name}}"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+    
+    # create the config.yml for each extra host
+    - name: create config for each extra host
+      local_action:
+        module: shell
+        cmd: |
+
+          echo "{{item.value.name}}" >> /tmp/fmd.log
+
+          mkdir -p "{{work_dir}}_orch"
+          cd "{{work_dir}}_orch"
+          mkdir -p "{{item.value.name}}"
+          cd "{{item.value.name}}"
+
+          date > date.txt
+
+          echo "{{item.value.config_changes}}" | yq -P '.' > changes.yml 
+
+          yq eval-all '. as $item ireduce ({}; . * $item)' {{playbook_dir}}/vars/nebula_default.reduced.yml changes.yml > config.yml
+
+      loop: "{{other_hosts | dict2items}}"
+      loop_control:
+        loop_var: item
+      run_once: true
+    
+    # create tar for each extra host
+    - name: create tar for each extra host
+      local_action:
+        module: shell
+        cmd: |
+          cd "{{work_dir}}_orch/{{item.value.name}}"
+
+          tar zcvf out.tar --exclude "*.tar" *
+
+      loop: "{{other_hosts | dict2items}}"
       loop_control:
         loop_var: item
       run_once: true
@@ -474,7 +539,7 @@
         group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
       become: true
 
-- name: upload .enc to server (currently private network) for later downloading 
+- name: upload .enc to server (currently private network) for later downloading for Ansible Hosts 
   
   hosts: 10.10.10.8
   # any_errors_fatal: true
@@ -513,28 +578,12 @@
       loop: "{{hostvars | dict2items}}"
       run_once: true
 
-    - name: "upload extra hosts config.enc files to hosting server"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
-      loop: "{{other_hosts | dict2items}}"
-      run_once: true
-
     - name: "upload hosts pass.enc files to hosting server"
       copy:
         backup: false
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
         src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
       loop: "{{hostvars | dict2items}}"
-      run_once: true
-
-    - name: "upload extra hosts pass.enc files to hosting server"
-      copy:
-        backup: false
-        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
-        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
-      loop: "{{other_hosts | dict2items}}"
       run_once: true
 
     - name: "upload ca.crt public file"
@@ -550,6 +599,62 @@
         dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.date"
         content: "{{ ansible_date_time.epoch }}"
       loop: "{{hostvars | dict2items}}"
+      run_once: true
+
+- name: upload .enc to server (currently private network) for later downloading for Other Hosts 
+  
+  hosts: 10.10.10.8
+  # hosts: mini.lan
+  # any_errors_fatal: true
+
+  vars: 
+    work_dir: /tmp/yeltnar-ansible
+    nebula_ca_name: "yeltnar nebula ca"
+    nebula_config_client_folder: "/etc/nebula"
+    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "/var/yeltnar-nebula_orch"
+    # executable_dir # is found in vars/{os_type}/{processor_arch}
+
+  vars_files:
+    - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
+    - vars/orchestrator.yml # this needs to be changed to reflect the OS ansible is being ran on
+    - vars/other_hosts.yml
+
+  tags:
+  - minimal
+  - upload
+  - on_orch
+
+  tasks: 
+
+    - name: make sure hot nebula directory exists
+      file: 
+        path: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula"
+        state: directory
+        owner: "{{ hostvars[inventory_hostname].ansible_facts.user_uid }}"
+        group:  "{{ hostvars[inventory_hostname].ansible_facts.user_gid }}"
+
+    - name: "upload extra hosts config.enc files to hosting server"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.tar.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.tar.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
+    - name: "upload extra hosts pass.enc files to hosting server"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/{{item.value.name}}.pass.enc"
+        src: "{{work_dir}}_orch/{{item.value.name}}/out.pass.enc"
+      loop: "{{other_hosts | dict2items}}"
+      run_once: true
+
+    - name: "upload ca.crt public file"
+      copy:
+        backup: false
+        dest: "{{ hostvars[inventory_hostname].ansible_facts.user_dir }}/playin/caddy/hot/nebula/"
+        src: "{{work_dir}}_orch/ca.crt"
       run_once: true
 
     - name: "create file which has last updated time for other hosts"

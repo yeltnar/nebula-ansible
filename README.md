@@ -6,7 +6,7 @@ ansible-playbook -Ki inventory.small.yml --tags on_orch nebula-playbook.yml | te
 
 # its tricky to update phones' certs. you may want to make a ca just for the phones and add them to each device so it can approve connections 
 
-# when using the .plist file on MacOS, make sure to run `sudo launchd load com.yeltnar.nebula.plist` so the network interface can be created
+# when using the .plist file on MacOS, make sure to run `sudo launchctl load com.yeltnar.nebula.plist` so the network interface can be created
 
 # ssh key needs to be in rsa pem format. this is generated in the playbook
 # ssh-keygen -t rsa -m PEM

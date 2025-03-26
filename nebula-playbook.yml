@@ -200,8 +200,18 @@
         cmd: |
           version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
           
+          cd "{{work_dir}}_orch";
+
+          # temp prefix files so the rm command doesn't delete them 
+          mv ca.crt .ca.crt
+          mv ca.key .ca.key
+
           mkdir -p "{{work_dir}}_orch"
           rm -rf {{work_dir}}_orch/*
+
+          mv .ca.crt ca.crt
+          mv .ca.key ca.key
+
           cd "{{work_dir}}_orch"
           
           curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{orchestrator_os_file_name}}"
@@ -214,7 +224,6 @@
           pwd;
 
           extract {{orchestrator_os_file_name}}
-        #creates: "/dev/nulll"
       run_once: true
       register: binaries_log
 

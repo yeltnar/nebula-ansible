@@ -31,11 +31,11 @@
   any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -67,11 +67,11 @@
   any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -120,8 +120,8 @@
   hosts: nebula_nodes
 
   vars: 
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
   
   vars_files:
     # - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
@@ -159,10 +159,10 @@
     - on_orch
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -199,21 +199,15 @@
         executable: /bin/bash
         cmd: |
           version=$(curl https://api.github.com/repos/slackhq/nebula/releases/latest | jq -r .tag_name)
-          
-          cd "{{work_dir}}_orch";
-
-          # temp prefix files so the rm command doesn't delete them 
-          mv ca.crt .ca.crt
-          mv ca.key .ca.key
-
-          mkdir -p "{{work_dir}}_orch"
-          rm -rf {{work_dir}}_orch/*
-
-          mv .ca.crt ca.crt
-          mv .ca.key ca.key
 
           cd "{{work_dir}}_orch"
           
+          mkdir -p .old
+          mv * .old/
+          mv ".old/ca.crt" . 
+          mv ".old/ca.key" .
+          rm -rf .old
+
           curl -OL "https://github.com/slackhq/nebula/releases/download/$version/{{orchestrator_os_file_name}}"
 
           echo "$version\n{{orchestrator_os_file_name}}\n{{work_dir}}\n$PWD" > /tmp/drew_ansible.log
@@ -234,11 +228,11 @@
   order: reverse_inventory
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
-    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -332,7 +326,7 @@
         module: shell
         cmd: |
 
-          # work_dir is /tmp/yeltnar-ansible 
+          # work_dir is ./tmp/yeltnar-ansible 
           export workdir="{{work_dir}}_orch/{{item.value.name}}/workdir"
           export FILE_TO_ENCRYPT={{work_dir}}_orch/{{item.value.name}}/out.tar;
           export ENCRYPTED_FILE={{work_dir}}_orch/{{item.value.name}}/out.tar.enc; 
@@ -364,11 +358,11 @@
     - minimal
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
-    var_dir: "/var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -495,11 +489,11 @@
   any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
 
   vars_files:
     - vars/{{ansible_facts.system}}/{{ansible_facts.machine}}.yml
@@ -554,11 +548,11 @@
   # any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -617,11 +611,11 @@
   # any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -681,11 +675,11 @@
   any_errors_fatal: true
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:
@@ -732,7 +726,7 @@
 
   vars: 
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
+    var_dir: "./var/yeltnar-nebula"
 
   tasks: 
   
@@ -796,11 +790,11 @@
   order: reverse_inventory
 
   vars: 
-    work_dir: /tmp/yeltnar-ansible
+    work_dir: ./tmp/yeltnar-ansible
     nebula_ca_name: "yeltnar nebula ca"
     nebula_config_client_folder: "/etc/nebula"
-    var_dir: "/var/yeltnar-nebula"
-    var_dir_orch: "/var/yeltnar-nebula_orch"
+    var_dir: "./var/yeltnar-nebula"
+    var_dir_orch: "./var/yeltnar-nebula_orch"
     # executable_dir # is found in vars/{os_type}/{processor_arch}
 
   vars_files:

@@ -51,7 +51,16 @@ restartNebula(){
     echo 'waiting to restarting nebula';
     sleep 15;
     echo 'restarting nebula';
-    systemctl restart nebula && echo 'nebula restarted' || echo 'nebula could not restart'
+    
+    # TODO make the darwin part nicer 
+    if [ $(uname) == "Darwin" ]; then
+      pushd /Users/drew/playin/nebula-ansible/; 
+      launchctl unload com.yeltnar.nebula.plist && 
+      launchctl load com.yeltnar.nebula.plist
+      popd;
+    else
+      systemctl restart nebula && echo 'nebula restarted' || echo 'nebula could not restart'
+    fi 
 }
 
 process(){

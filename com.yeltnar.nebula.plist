@@ -26,8 +26,9 @@
 
     <key>ProgramArguments</key>
     <array>
-      <!-- <string>/tmp/yeltnar-nebula/nebula</string> -->
-      <string>/usr/local/bin/nebula</string>
+      <!--make sure you are pointing at the nebula file -->
+      <!--<string>/usr/local/bin/nebula</string>-->
+      <string>/run/current-system/sw/bin/nebula</string>
       <string>-config</string>
       <string>/etc/nebula/config.yml</string>
     </array>
